@@ -903,10 +903,13 @@ def process_camera():
     global capture_frame_counter
     global stuck_ellipses
 
-    cam_index = int(selected_camera.get())
+    source = selected_camera.get().strip()
 
     reset_tracking_state()
-    cap = cv2.VideoCapture(cam_index, cv2.CAP_MSMF)
+    if source.isdigit():
+        cap = cv2.VideoCapture(int(source), cv2.CAP_MSMF)
+    else:
+        cap = cv2.VideoCapture(source)
 
     if not cap.isOpened():
         print("Error: Could not open camera.")

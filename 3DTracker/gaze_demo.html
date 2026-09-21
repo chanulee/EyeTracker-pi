@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaze Cursor Demo</title>
+<style>
+  :root {
+    --bg: #232a3a;
+    --panel: #2d3548;
+    --line: #3f4a64;
+    --text: #eef1f7;
+    --muted: #9aa4ba;
+    --gaze: #ffb547;
+    --target: #ff6f61;
+    --good: #7fd8be;
+    --bad: #ff8a80;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Avenir Next", Ubuntu, sans-serif;
+  }
+
+  header {
+    position: fixed; inset: 0 0 auto 0; z-index: 5;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0 10px 0 0; font-size: 16px; font-weight: 650; }
+  .status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .status.good::before { background: var(--good); }
+  .status.bad::before  { background: var(--bad); }
+  .spacer { flex: 1; }
+  button {
+    font: inherit; font-size: 13px; color: var(--text); cursor: pointer;
+    background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px;
+  }
+  button:hover { border-color: var(--muted); }
+  button:focus-visible { outline: 2px solid var(--gaze); outline-offset: 2px; }
+  button.primary { background: var(--gaze); border-color: var(--gaze); color: #2a1c00; font-weight: 650; }
+
+  main {
+    position: absolute; inset: 60px 0 0 0; padding: 22px;
+    display: grid; gap: 22px;
+    grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr);
+  }
+  .tile {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--line); border-radius: 22px; background: var(--panel);
+    font-size: clamp(22px, 4vw, 48px); font-weight: 600; color: var(--muted);
+    transition: color .15s, border-color .15s, background-color .15s;
+  }
+  .tile.hot { color: var(--text); border-color: var(--gaze); }
+  .tile .fill {
+    position: absolute; left: 0; bottom: 0; height: 6px; width: 0; background: var(--gaze);
+  }
+  .tile.picked { animation: picked .6s ease-out; }
+  @keyframes picked { 30% { background-color: #5a4a2a; } }
+
+  #hint {
+    position: fixed; z-index: 7; left: 50%; top: 55%; transform: translate(-50%, -50%);
+    width: min(440px, 90vw); padding: 22px 24px; line-height: 1.55;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 14px;
+  }
+  #hint h2 { margin: 0 0 8px; font-size: 20px; }
+  #hint p { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+
+  #cursor {
+    position: fixed; z-index: 8; pointer-events: none; display: none;
+    width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
+    border: 4px solid var(--gaze); background: rgba(255, 181, 71, .18);
+    transition: opacity .2s;
+  }
+  #cursor.lost { opacity: .25; }
+
+  #preview {
+    position: fixed; right: 18px; bottom: 18px; z-index: 6; display: none;
+    width: 260px; aspect-ratio: 4 / 3; background: #000;
+    border: 1px solid var(--line); border-radius: 10px;
+  }
+
+  #calib { position: fixed; inset: 0; z-index: 10; display: none; background: var(--bg); }
+  #calMsg {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(420px, 90vw); text-align: center; font-size: 17px; line-height: 1.6; color: var(--muted);
+  }
+  #dot {
+    position: absolute; display: none; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+    border-radius: 50%; background: var(--target);
+  }
+  #dot::after { content: ""; position: absolute; inset: 11px; border-radius: 50%; background: #fff; }
+  #dot.collect { animation: shrink 1.2s linear forwards; }
+  @keyframes shrink { to { transform: scale(.45); } }
+
+  @media (max-width: 700px) {
+    main { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tile.picked, #dot.collect { animation: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gaze Cursor Demo</h1>
+  <span id="conn" class="status bad">Not connected</span>
+  <span id="pupil" class="status">Pupil: waiting</span>
+  <span id="fps" class="status">– fps</span>
+  <span id="cal" class="status">Not calibrated</span>
+  <span id="picked" class="status">Last pick: none</span>
+  <div class="spacer"></div>
+  <button id="btnPreview">Show camera</button>
+  <button id="btnFull">Full screen</button>
+  <button id="btnCal" class="primary">Calibrate</button>
+</header>
+
+<main id="tiles"></main>
+
+<div id="hint">
+  <h2>Calibrate to start</h2>
+  <p>Go full screen, sit the way you'll use it, and keep your head still. Look at each red dot until it shrinks. It takes about 20 seconds.</p>
+  <p>Shortcuts: C to calibrate, P to show the camera, F for full screen, Esc to cancel.</p>
+  <button class="primary" id="btnCal2">Calibrate</button>
+</div>
+
+<img id="preview" alt="Eye camera preview">
+<div id="cursor"></div>
+<div id="calib"><div id="calMsg"></div><div id="dot"></div></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const CAM_W = 640, CAM_H = 480;
+const WORDS = ["Hello", "Yes", "No", "Help", "Water", "Thanks"];
+const DWELL_MS = 1200;   // how long to stare at a tile to pick it
+const SMOOTH = 0.18;     // cursor smoothing (lower = smoother, slower)
+const POINTS = [[.1,.1],[.5,.1],[.9,.1],[.1,.5],[.5,.5],[.9,.5],[.1,.9],[.5,.9],[.9,.9]];
+
+// ---------- tiles ----------
+WORDS.forEach((w) => {
+  const t = document.createElement("div");
+  t.className = "tile";
+  t.dataset.word = w;
+  t.innerHTML = `<span>${w}</span><div class="fill"></div>`;
+  $("tiles").appendChild(t);
+});
+
+// ---------- state ----------
+let latest = { ok: false, x: 0, y: 0, fps: 0 };
+let model = null;
+let target = null, pos = null;
+let calibrating = false, collecting = false, cancelCal = false, samples = [];
+
+try { const s = localStorage.getItem("gazeModel"); if (s) model = JSON.parse(s); } catch (e) {}
+
+function setStatus(id, text, cls) {
+  const el = $(id);
+  el.textContent = text;
+  el.className = "status" + (cls ? " " + cls : "");
+}
+function refreshCalUI() {
+  setStatus("cal", model ? "Calibrated" : "Not calibrated", model ? "good" : "");
+  $("hint").style.display = model || calibrating ? "none" : "block";
+}
+refreshCalUI();
+
+// ---------- data from the Pi ----------
+const es = new EventSource("/stream");          // reconnects automatically
+es.onopen = () => setStatus("conn", "Connected", "good");
+es.onerror = () => setStatus("conn", "Not connected. Is the server running?", "bad");
+es.onmessage = (e) => {
+  latest = JSON.parse(e.data);
+  setStatus("pupil", latest.ok ? "Pupil found" : "Pupil lost", latest.ok ? "good" : "bad");
+  $("fps").textContent = latest.fps + " fps";
+  if (!latest.ok) return;
+  const nx = latest.x / CAM_W, ny = latest.y / CAM_H;
+  if (collecting) samples.push([nx, ny]);
+  if (model) target = predict(nx, ny);
+};
+
+// ---------- mapping: pupil position -> screen position ----------
+const feats = (x, y) => [1, x, y, x * y, x * x, y * y];
+
+function solve(A, b) {                     // Gaussian elimination
+  const n = b.length;
+  for (let i = 0; i < n; i++) {
+    let p = i;
+    for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r;
+    [A[i], A[p]] = [A[p], A[i]]; [b[i], b[p]] = [b[p], b[i]];
+    for (let r = i + 1; r < n; r++) {
+      const f = A[r][i] / A[i][i];
+      for (let c = i; c < n; c++) A[r][c] -= f * A[i][c];
+      b[r] -= f * b[i];
+    }
+  }
+  const x = Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = b[i];
+    for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c];
+    x[i] = s / A[i][i];
+  }
+  return x;
+}
+
+function fitAxis(inputs, outputs) {         // least squares with a little ridge
+  const n = 6;
+  const A = Array.from({ length: n }, () => Array(n).fill(0));
+  const b = Array(n).fill(0);
+  inputs.forEach(([x, y], k) => {
+    const f = feats(x, y);
+    for (let r = 0; r < n; r++) {
+      b[r] += f[r] * outputs[k];
+      for (let c = 0; c < n; c++) A[r][c] += f[r] * f[c];
+    }
+  });
+  for (let r = 1; r < n; r++) A[r][r] += 0.02;
+  return solve(A, b);
+}
+
+function predict(nx, ny) {
+  const zx = (nx - model.mu[0]) / model.sd[0];
+  const zy = (ny - model.mu[1]) / model.sd[1];
+  const f = feats(zx, zy);
+  const dot = (w) => w.reduce((s, wi, i) => s + wi * f[i], 0);
+  return [dot(model.wx), dot(model.wy)];
+}
+
+// ---------- calibration ----------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const median = (a) => {
+  const s = [...a].sort((p, q) => p - q), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+
+async function calibrate() {
+  if (calibrating) return;
+  calibrating = true; cancelCal = false;
+  const cal = $("calib"), dot = $("dot"), msg = $("calMsg");
+  cal.style.display = "block";
+  $("cursor").style.display = "none";
+  refreshCalUI();
+
+  msg.style.display = "block";
+  for (let i = 3; i > 0 && !cancelCal; i--) {
+    msg.innerHTML = `Keep your head still and look at each red dot until it shrinks.<br><br>Starting in ${i}`;
+    await sleep(1000);
+  }
+  msg.style.display = "none";
+
+  const ins = [], outs = [];
+  for (const [px, py] of POINTS) {
+    if (cancelCal) break;
+    dot.style.left = px * 100 + "%";
+    dot.style.top = py * 100 + "%";
+    dot.className = "";
+    dot.style.display = "block";
+    await sleep(900);                         // let the eyes settle
+    samples = [];
+    void dot.offsetWidth;
+    dot.className = "collect";
+    collecting = true;
+    await sleep(1200);
+    collecting = false;
+    if (samples.length >= 3) {
+      ins.push([median(samples.map((s) => s[0])), median(samples.map((s) => s[1]))]);
+      outs.push([px, py]);
+    }
+  }
+  dot.style.display = "none";
+
+  msg.style.display = "block";
+  if (cancelCal) {
+    msg.textContent = "Calibration cancelled.";
+  } else if (ins.length >= 6) {
+    const mean = (k) => ins.reduce((s, p) => s + p[k], 0) / ins.length;
+    const mu = [mean(0), mean(1)];
+    const sd = [0, 1].map((k) =>
+      Math.max(1e-3, Math.sqrt(ins.reduce((s, p) => s + (p[k] - mu[k]) ** 2, 0) / ins.length)));
+    const z = ins.map(([x, y]) => [(x - mu[0]) / sd[0], (y - mu[1]) / sd[1]]);
+    model = { mu, sd, wx: fitAxis(z, outs.map((o) => o[0])), wy: fitAxis(z, outs.map((o) => o[1])) };
+    try { localStorage.setItem("gazeModel", JSON.stringify(model)); } catch (e) {}
+    pos = null; target = null;
+    msg.textContent = `Calibrated with ${ins.length} of 9 points.`;
+  } else {
+    msg.textContent = `The pupil was found at only ${ins.length} of 9 points. Open the camera view, fix the camera angle or lighting, then calibrate again.`;
+  }
+  await sleep(cancelCal ? 700 : 1800);
+  cal.style.display = "none";
+  calibrating = false;
+  refreshCalUI();
+}
+
+// ---------- cursor + dwell selection ----------
+const cursor = $("cursor");
+const tiles = [...document.querySelectorAll(".tile")];
+let hotTile = null, hotSince = 0;
+
+function tileAt(x, y) {
+  return tiles.find((t) => {
+    const r = t.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }) || null;
+}
+
+function updateTiles(p, ok) {
+  const el = ok ? tileAt(p[0], p[1]) : null;
+  if (el !== hotTile) {
+    if (hotTile) {
+      hotTile.classList.remove("hot");
+      hotTile.querySelector(".fill").style.width = "0";
+    }
+    hotTile = el;
+    hotSince = performance.now();
+    if (el) el.classList.add("hot");
+  }
+  if (!hotTile) return;
+  const k = Math.max(0, Math.min(1, (performance.now() - hotSince) / DWELL_MS));
+  hotTile.querySelector(".fill").style.width = k * 100 + "%";
+  if (k >= 1) {
+    hotTile.classList.remove("picked");
+    void hotTile.offsetWidth;
+    hotTile.classList.add("picked");
+    setStatus("picked", "Last pick: " + hotTile.dataset.word, "good");
+    hotSince = performance.now() + 800;   // short pause before it can fire again
+  }
+}
+
+function loop() {
+  if (model && target && !calibrating) {
+    const tx = Math.min(innerWidth, Math.max(0, target[0] * innerWidth));
+    const ty = Math.min(innerHeight, Math.max(0, target[1] * innerHeight));
+    pos = pos ? [pos[0] + (tx - pos[0]) * SMOOTH, pos[1] + (ty - pos[1]) * SMOOTH] : [tx, ty];
+    cursor.style.display = "block";
+    cursor.style.left = pos[0] + "px";
+    cursor.style.top = pos[1] + "px";
+    cursor.classList.toggle("lost", !latest.ok);
+    updateTiles(pos, latest.ok);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- controls ----------
+function togglePreview() {
+  const img = $("preview");
+  const show = img.style.display !== "block";
+  img.style.display = show ? "block" : "none";
+  img.src = show ? "/video?" + Date.now() : "";
+  $("btnPreview").textContent = show ? "Hide camera" : "Show camera";
+}
+function toggleFull() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+$("btnCal").onclick = calibrate;
+$("btnCal2").onclick = calibrate;
+$("btnPreview").onclick = togglePreview;
+$("btnFull").onclick = toggleFull;
+addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase();
+  if (k === "escape") cancelCal = true;
+  else if (k === "c") calibrate();
+  else if (k === "p") togglePreview();
+  else if (k === "f") toggleFull();
+});
+</script>
+</body>
+</html>
