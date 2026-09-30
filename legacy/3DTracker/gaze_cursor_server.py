@@ -5,7 +5,7 @@ Gaze cursor server for the laptop (Windows).
 Reads gaze_vector.txt written by Orlosky3DEyeTracker.py and sends the gaze
 direction to gaze_demo.html, which does calibration and draws the cursor.
 
-Put this file and gaze_demo.html in the tracking folder, then run:
+Put this file and gaze_demo.html in the legacy/3DTracker folder, then run:
     python gaze_cursor_server.py
 and open  http://localhost:8080  in your browser.
 """

@@ -1,6 +1,6 @@
 # 원본 프로젝트 설명
 
-원본 소개를 참고 자료로 보존했습니다. 현재 전시 구성은 [메인 README](../README.md)를 참고하세요. 동공 검출 데모는 `legacy/pupil-detectors/`, 테스트 영상은 `assets/eye_test.mp4`로 이동했습니다.
+원본 소개를 참고 자료로 보존했습니다. 현재 전시 구성은 [메인 README](../../README.md)를 참고하세요. 동공 검출 데모는 `legacy/pupil-detectors/`, 테스트 영상은 `exhibition/assets/eye_test.mp4`로 이동했습니다.
 
 
 
@@ -14,7 +14,7 @@ This repository is an open-source 3D eye tracking algorithm written in Python. C
 
 To use the script, run "python legacy/pupil-detectors/OrloskyPupilDetector.py" from your shell. If the hardcoded file path in the select_video() function does not find a video at the specified path, it will open a browse window that allows you to select a video. The process_video() function handles the majority of the processing and can be easily modified to work with a camera capture or image. It returns a rotated_rect that represents the pupil ellipse. A lite version is also included that is more efficient, but less robust. Be sure to have an adequate light source for the lite version.
 
-A test video (eye_test.mp4) is included in the `assets/` directory for testing. Algorithm details are explained here: https://www.youtube.com/watch?v=bL92JUBG8xw
+A test video (eye_test.mp4) is included in the `exhibition/assets/` directory for testing. Algorithm details are explained here: https://www.youtube.com/watch?v=bL92JUBG8xw
 
 When running the script on this test video, your results should look like this: https://youtu.be/B06cUMplDHw.
 

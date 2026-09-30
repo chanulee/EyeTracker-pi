@@ -1,6 +1,8 @@
-# 눈 추출 알고리즘 및 기존 데모
+# 이전 3D·양안·Unity·SSE 데모
 
-전시 서버는 이 폴더의 `Orlosky3DEyeTracker.py`를 GUI 없이 불러옵니다. 직접 실행하는 GUI, 양안 트래커, OpenGL, Unity 및 SSE 데모는 참고용입니다. 전시 실행은 [README](../README.md)의 Mac 시작 명령을 사용하세요. 양안 추적은 한 사람의 두 눈이며, 전시의 1P·2P 두 사용자 처리와는 별개입니다.
+현재 전시에서 사용하는 단안 알고리즘은 [exhibition/tracking/Orlosky3DEyeTracker.py](../../exhibition/tracking/Orlosky3DEyeTracker.py)로 이동했습니다. 이 폴더의 양안·OpenGL·Unity·SSE 코드와 아래 설명은 참고용입니다. 전시 실행은 [메인 README](../../README.md)를 사용하세요. 양안 추적은 한 사람의 두 눈이며 전시의 두 사용자 처리와 다릅니다.
+
+기존 단안 GUI와 SSE 데모를 실행하려면 현재 단안 알고리즘 파일을 이 폴더에 별도로 복사하고 이 폴더에서 실행하세요. 기존 SSE 서버는 같은 폴더의 `gaze_vector.txt`를 읽습니다. 전시 Mac 서버는 파일 출력 대신 WebSocket을 사용합니다.
 
 This project provides a real-time 3D eye tracking system using a near-eye infrared camera, OpenCV, and optional OpenGL visualization. It detects the pupil in each frame, fits an ellipse to estimate eye orientation, and projects a 3D gaze direction vector from the user's eye center through the pupil.
 

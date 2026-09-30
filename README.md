@@ -1,8 +1,8 @@
 # 전시용 Eye Cursor — 사용자 2명 / Pi 2대 / Mac mini 1대
 
-현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash scripts/start-mac.sh --two-users`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](docs/MAC_MINI_KO.md)에 있습니다.
+현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash start-mac.sh --two-users`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](exhibition/docs/MAC_MINI_KO.md)에 있습니다.
 
-전시 소프트웨어는 `exhibition/`, 눈 추출 알고리즘은 `tracking/`, 실행 명령은 `scripts/`, 문서는 `docs/`, 예전 실험은 `legacy/`, 테스트 영상은 `assets/`에 있습니다. [문서 목록](docs/README.md)과 [폴더 이동표](docs/REPOSITORY_KO.md)를 참고하세요.
+저장소는 **`exhibition/` — 현재 전시에 필요한 모든 것**, **`legacy/` — 현재 전시에서 사용하지 않는 원본 실험과 이전 데모**로 나뉩니다. 루트 `start-mac.sh`는 Mac 실행 진입점입니다. [문서 목록](exhibition/docs/README.md)과 [폴더 이동표](exhibition/docs/REPOSITORY_KO.md)를 참고하세요.
 
 관람객마다 **Pi Zero 2 W + USB/UVC GC0308 눈 카메라 한 세트**를 사용합니다. Pi 두 대가 같은 전시 네트워크를 통해 Mac mini 한 대에 영상을 보내고, Mac이 사용자별 눈 방향·캘리브레이션·좌표 안정화를 처리합니다. 웹 작품은 두 사용자의 좌표를 각각 구독합니다.
 
@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/chanulee/EyeTracker-pi/main/install
 저장소 루트에서 실행합니다. Python 3.10 이상이 필요하며 새 Mac에서는 첫 실행 때 필요한 라이브러리를 설치합니다. 현재 전시용 Mac의 `.venv`에는 이미 설치되어 있습니다. 기존 단일 사용자 서버가 실행 중이면 먼저 종료해 8080/8081 포트를 비워주세요.
 
 ```bash
-bash scripts/start-mac.sh --two-users
+bash start-mac.sh --two-users
 ```
 
 | 항목 | 사용자 1 | 사용자 2 |
@@ -59,7 +59,7 @@ bash scripts/start-mac.sh --two-users
 장비 없이 두 운영 화면을 시험하려면:
 
 ```bash
-bash scripts/start-mac.sh --two-users --simulate
+bash start-mac.sh --two-users --simulate
 ```
 
 각 운영 화면에서 마우스로 보정 점을 따라갑니다. 시뮬레이션은 실제 카메라 정확도 검증이 아닙니다.
@@ -90,7 +90,7 @@ Pi에 저장하는 Mac 주소는 Pi에서 접근 가능한 Wi-Fi IP나 hostname�
 
 **두 Mac 운영 화면 모두** 설정에 작품의 Origin을 등록합니다. 통합 관리자에서도 1P·2P 카드에 각각 저장할 수 있습니다. 예: `http://localhost:5173`. 각 WebSocket의 메시지에는 `user_id:1` 또는 `user_id:2`가 있습니다. 다른 컴퓨터에서 웹 작품을 실행하면 `localhost` 대신 Mac의 LAN 주소를 사용합니다.
 
-[공통 클라이언트](exhibition/web/gaze-client.js)를 웹 프로젝트로 복사해 두 번 연결하세요. 아래 예제는 구독 토큰 요구를 끈 기본 설정입니다. 토큰 요구를 켜면 [토큰 전달 예제](docs/FRONTEND_KO.md#통합-관리자와-1p--2p-구독-토큰)처럼 네 번째 인자로 사용자별 시선 구독 토큰을 전달합니다. Pi 영상 전송 토큰은 작품에 전달하지 않습니다.
+[공통 클라이언트](exhibition/web/gaze-client.js)를 웹 프로젝트로 복사해 두 번 연결하세요. 아래 예제는 구독 토큰 요구를 끈 기본 설정입니다. 토큰 요구를 켜면 [토큰 전달 예제](exhibition/docs/FRONTEND_KO.md#통합-관리자와-1p--2p-구독-토큰)처럼 네 번째 인자로 사용자별 시선 구독 토큰을 전달합니다. Pi 영상 전송 토큰은 작품에 전달하지 않습니다.
 
 ```javascript
 import { connectGaze } from './gaze-client.js';
@@ -109,26 +109,26 @@ const stops = [1, 2].map(userId => connectGaze(
 // 페이지/컴포넌트 종료 시: stops.forEach(stop => stop());
 ```
 
-프론트엔드 상태는 사용자 번호별로 관리하세요. `seq`와 `session_id`도 사용자별 값입니다. 상세 메시지 계약, 화면 영역 변환, HTTPS/WSS 조건은 [웹 학생 전달 매뉴얼](docs/FRONTEND_KO.md)을 참고하세요.
+프론트엔드 상태는 사용자 번호별로 관리하세요. `seq`와 `session_id`도 사용자별 값입니다. 상세 메시지 계약, 화면 영역 변환, HTTPS/WSS 조건은 [웹 학생 전달 매뉴얼](exhibition/docs/FRONTEND_KO.md)을 참고하세요.
 
 ## 문서와 검증
 
-- [Pi 설치 / 자동실행 / Mac 운영 매뉴얼](docs/SETUP_KO.md)
-- [웹 프론트엔드 학생 전달 매뉴얼 / 메시지 계약](docs/FRONTEND_KO.md)
-- [폴더별 역할 / 원본과 학생 변경 정리](docs/REPOSITORY_KO.md)
-- [이 전시용 Mac mini의 설치 상태 / 실행 방법](docs/MAC_MINI_KO.md)
+- [Pi 설치 / 자동실행 / Mac 운영 매뉴얼](exhibition/docs/SETUP_KO.md)
+- [웹 프론트엔드 학생 전달 매뉴얼 / 메시지 계약](exhibition/docs/FRONTEND_KO.md)
+- [폴더별 역할 / 원본과 학생 변경 정리](exhibition/docs/REPOSITORY_KO.md)
+- [이 전시용 Mac mini의 설치 상태 / 실행 방법](exhibition/docs/MAC_MINI_KO.md)
 
 ```bash
-.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s exhibition/tests -v
 ```
 
-전시 코드, 알고리즘, 예전 실험을 폴더별로 정리했습니다. [기존 학생 MJPEG/Windows 데모](docs/LEGACY_PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대·GC0308 두 대·전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 시작값은 각 Pi 320×240 / 20 FPS / JPEG 품질 65이고, 무선 혼잡이나 Mac 부하가 크면 각 Pi 설정에서 FPS·품질을 낮춰 확인하세요.
+전시 코드, 알고리즘, 예전 실험을 폴더별로 정리했습니다. [기존 학생 MJPEG/Windows 데모](legacy/docs/LEGACY_PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대·GC0308 두 대·전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 시작값은 각 Pi 320×240 / 20 FPS / JPEG 품질 65이고, 무선 혼잡이나 Mac 부하가 크면 각 Pi 설정에서 FPS·품질을 낮춰 확인하세요.
 
 단일 사용자 개발·기존 사용법도 유지합니다.
 
 ```bash
-bash scripts/start-mac.sh
-bash scripts/start-mac.sh --simulate
+bash start-mac.sh
+bash start-mac.sh --simulate
 ```
 
-원본 프로젝트 소개와 크레딧은 [원본 안내](docs/UPSTREAM.md)에 보존했습니다.
+원본 프로젝트 소개와 크레딧은 [원본 안내](legacy/docs/UPSTREAM.md)에 보존했습니다.

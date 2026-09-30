@@ -2,10 +2,10 @@
 set -euo pipefail
 # Run as the normal SSH user; sudo is used only for packages and systemd.
 if [ "$(id -u)" -eq 0 ]; then
-  echo '일반 사용자로 실행하세요: bash scripts/install-pi.sh' >&2
+  echo '일반 사용자로 실행하세요: bash exhibition/scripts/install-pi.sh' >&2
   exit 1
 fi
-repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
+repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
 if [[ "$repo_dir" == *$'\n'* || "$repo_dir" == *'%'* || "$repo_dir" == *'"'* || "$repo_dir" == *'\'* ]]; then
   echo '저장소 경로에 줄바꿈, %, 따옴표, 역슬래시를 사용할 수 없습니다.' >&2
   exit 1

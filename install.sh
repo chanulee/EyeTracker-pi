@@ -30,4 +30,4 @@ else
   rmdir "$download_dir"
   trap - EXIT
 fi
-exec bash "$repo_dir/scripts/install-pi.sh"
+exec bash "$repo_dir/exhibition/scripts/install-pi.sh"

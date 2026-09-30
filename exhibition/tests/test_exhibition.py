@@ -1,4 +1,4 @@
-"""Run: .venv/bin/python -m unittest discover -s tests -v"""
+"""Run: .venv/bin/python -m unittest discover -s exhibition/tests -v"""
 import asyncio
 import base64
 from pathlib import Path

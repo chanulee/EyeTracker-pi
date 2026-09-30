@@ -4,12 +4,12 @@ Mac에서 영상 처리·개인별 보정·안정화를 끝낸 결과를 WebSock
 
 ## 연결
 
-1. Mac 서버 실행: `bash scripts/start-mac.sh --two-users`. 사용자 1은 8080, 사용자 2는 8081입니다.
+1. Mac 서버 실행: `bash start-mac.sh --two-users`. 사용자 1은 8080, 사용자 2는 8081입니다.
 2. `http://localhost:8080`, `http://localhost:8081` 각각에서 해당 관람객의 보정을 완료합니다.
 3. **두 Mac 운영 화면 모두** 설정에 프론트엔드 Origin을 정확히 등록합니다. 예: `http://localhost:5173`. 포트까지 같아야 하고 경로/끝 슬래시는 붙이지 않습니다.
 4. 같은 Mac의 프론트엔드: 사용자 1 `ws://localhost:8080/gaze`, 사용자 2 `ws://localhost:8081/gaze`. 다른 기기에서는 localhost를 Mac의 LAN 주소로 바꿉니다. 두 연결을 동시에 구독하는 예시는 [README](../README.md)에 있습니다.
 
-제공 클라이언트 [gaze-client.js](../exhibition/web/gaze-client.js)를 웹 프로젝트에 복사해 import하세요. 연결 끊김 시 재접속하며 500ms 무응답 시 무효 좌표를 전달합니다. 타이머 종료를 위해 컴포넌트 unmount 때 반환 함수를 호출합니다.
+제공 클라이언트 [gaze-client.js](../web/gaze-client.js)를 웹 프로젝트에 복사해 import하세요. 연결 끊김 시 재접속하며 500ms 무응답 시 무효 좌표를 전달합니다. 타이머 종료를 위해 컴포넌트 unmount 때 반환 함수를 호출합니다.
 
 ```javascript
 import { connectGaze } from './gaze-client.js';
@@ -88,7 +88,7 @@ const disconnect = connectGaze('ws://localhost:8080/gaze', gaze => {
 
 이 프로토타입은 같은 Wi-Fi에서 로컬 HTTP 프론트엔드를 실행하는 구성을 제공합니다. 공개 HTTPS 웹페이지에서 로컬 `ws://`를 여는 구성은 브라우저의 mixed-content/로컬 네트워크 정책에 의해 제한될 수 있습니다. 공개 배포가 필요하면 Mac 서버 앞에 신뢰 가능한 TLS 역방향 프록시를 두고 `/gaze`를 WSS로 제공하거나, 로컬에서 작품을 HTTP로 실행하세요. Pi `/camera`도 원격 네트워크라면 WSS가 필요합니다. 현재 TLS·공개 사이트 호스팅·외부 프록시는 설치 스크립트 범위에 포함하지 않습니다. Origin 허용은 인증 수단이 아니므로 불특정 네트워크에 좌표 API를 공개하지 마세요.
 
-실행 예제는 [프로토타입](../exhibition/web/index.html), 재접속/무응답 처리는 [공통 클라이언트](../exhibition/web/gaze-client.js)를 참고하세요. WebSocket HTTP 서버 구현은 [aiohttp 공식 문서](https://docs.aiohttp.org/en/stable/web_quickstart.html)를 따릅니다.
+실행 예제는 [프로토타입](../web/index.html), 재접속/무응답 처리는 [공통 클라이언트](../web/gaze-client.js)를 참고하세요. WebSocket HTTP 서버 구현은 [aiohttp 공식 문서](https://docs.aiohttp.org/en/stable/web_quickstart.html)를 따릅니다.
 
 ## 통합 관리자와 1P / 2P 구독 토큰
 

@@ -25,7 +25,7 @@ DEFAULTS = dict(token='', gaze_token='', require_gaze_token=False, allowed_origi
 
 
 def load_tracker():
-    path = HERE.parent / 'tracking' / 'Orlosky3DEyeTracker.py'
+    path = HERE / 'tracking' / 'Orlosky3DEyeTracker.py'
     spec = importlib.util.spec_from_file_location('orlosky', path)
     tracker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tracker)

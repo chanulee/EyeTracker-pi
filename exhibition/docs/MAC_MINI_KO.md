@@ -12,7 +12,7 @@ Mac 터미널에서 실행합니다.
 
 ```bash
 cd /Users/design01/Documents/GitHub/EyeTracker-pi
-bash scripts/start-mac.sh --two-users
+bash start-mac.sh --two-users
 ```
 
 터미널을 유지하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. 8080은 1P, 8081은 2P입니다. Pi를 아직 연결하지 않았다면 연결 대기로 표시됩니다. 관리자에서 각 Pi 전송 토큰, 작품 구독 토큰, Origin 설정과 연결 상태를 확인합니다. 보정은 각 사용자 운영 화면에서 순서대로 진행합니다.
@@ -20,7 +20,7 @@ bash scripts/start-mac.sh --two-users
 실제 카메라 없이 UI를 시험할 때는 서버를 Ctrl+C로 종료한 뒤 다음 명령으로 시작합니다.
 
 ```bash
-bash scripts/start-mac.sh --two-users --simulate
+bash start-mac.sh --two-users --simulate
 ```
 
 시뮬레이션의 각 보정 화면에서 마우스로 점을 따라갑니다. 시뮬레이션에서는 실제 Pi 연결을 받지 않습니다. [두 커서 확인 화면](http://localhost:8080/stage)은 각 사용자의 보정이 완료되면 같은 화면 전체에 두 좌표를 표시합니다. 실제 전시로 돌아갈 때 Ctrl+C로 종료하고 `--simulate` 없이 시작합니다.

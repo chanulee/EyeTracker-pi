@@ -2,7 +2,7 @@
 
 구성: GC0308 **USB/UVC 눈 카메라** → Pi Zero 2 W (JPEG 인코딩) → 같은 Wi-Fi의 Mac mini (WebSocket 수신, 기존 Orlosky 동공/3D 방향 추정, 안정화, 개인별 화면 보정) → 웹 프론트엔드.
 
-전시에서는 Pi 두 대·관람객 두 명을 사용합니다. Mac에서 `bash scripts/start-mac.sh --two-users`로 사용자별 서버를 실행하세요. 사용자 1은 8080, 사용자 2는 8081이며 눈 모델과 보정값은 분리됩니다. 두 Pi의 hostname/토큰/수신 주소 연결표는 [README의 두 사용자 설치 절차](../README.md)를 먼저 확인하세요. 아래 단일 세트 설치·보정 절차를 각 사용자에게 적용합니다. 2번 사용자는 아래 8080 예시를 8081로, Pi hostname을 eye-pi-2로 바꾸고 해당 사용자 2 토큰을 사용하세요. `direction`은 카메라/기존 트래커 모델 기준의 추정 방향입니다. 정확한 물리적 각도나 방 안의 좌표를 측정하지 않습니다. 화면에서 사용할 값은 개인별 보정이 끝난 `x/y`입니다. 지정 좌석이어도 눈·장착 위치가 달라지므로 관람객마다 다시 보정합니다. 머리 이동 보정은 포함하지 않으므로 카메라는 눈에 대해 고정하고 자세를 유지하세요. 멀리서 얼굴 전체를 촬영하는 구성은 이 근접 눈 트래커의 입력 조건과 다릅니다.
+전시에서는 Pi 두 대·관람객 두 명을 사용합니다. Mac에서 `bash start-mac.sh --two-users`로 사용자별 서버를 실행하세요. 사용자 1은 8080, 사용자 2는 8081이며 눈 모델과 보정값은 분리됩니다. 두 Pi의 hostname/토큰/수신 주소 연결표는 [README의 두 사용자 설치 절차](../README.md)를 먼저 확인하세요. 아래 단일 세트 설치·보정 절차를 각 사용자에게 적용합니다. 2번 사용자는 아래 8080 예시를 8081로, Pi hostname을 eye-pi-2로 바꾸고 해당 사용자 2 토큰을 사용하세요. `direction`은 카메라/기존 트래커 모델 기준의 추정 방향입니다. 정확한 물리적 각도나 방 안의 좌표를 측정하지 않습니다. 화면에서 사용할 값은 개인별 보정이 끝난 `x/y`입니다. 지정 좌석이어도 눈·장착 위치가 달라지므로 관람객마다 다시 보정합니다. 머리 이동 보정은 포함하지 않으므로 카메라는 눈에 대해 고정하고 자세를 유지하세요. 멀리서 얼굴 전체를 촬영하는 구성은 이 근접 눈 트래커의 입력 조건과 다릅니다.
 
 ## 1. 최초 Pi 준비 (화면·브라우저 불필요)
 
@@ -22,16 +22,16 @@ curl -fsSL https://raw.githubusercontent.com/chanulee/EyeTracker-pi/main/install
 
 **이 명령은 이번 변경사항이 GitHub `chanulee/EyeTracker-pi`의 `main`에 올라간 뒤 사용할 수 있습니다.** 현재 로컬 파일만 수정된 상태라면 먼저 커밋/push해야 합니다. 로그인 없는 위 명령은 공개 저장소 기준입니다. 비공개 저장소는 GitHub 인증을 별도로 구성해야 합니다.
 
-루트 `install.sh`는 Git이 없으면 설치하고 main 브랜치를 내려받은 뒤 기존 `scripts/install-pi.sh`를 실행합니다. 이미 같은 저장소가 설치되어 있고 변경사항이 없으면 최신 main으로 fast-forward 업데이트합니다. 설정 파일은 Git에서 제외되어 유지됩니다. 다른 파일이 들어 있는 폴더나 수정 중인 저장소는 덮어쓰지 않고 중단합니다. 기본 경로 대신 다른 경로를 쓰려면 `bash /tmp/eye-install.sh /원하는/설치경로`로 실행합니다.
+루트 `install.sh`는 Git이 없으면 설치하고 main 브랜치를 내려받은 뒤 기존 `exhibition/scripts/install-pi.sh`를 실행합니다. 이미 같은 저장소가 설치되어 있고 변경사항이 없으면 최신 main으로 fast-forward 업데이트합니다. 설정 파일은 Git에서 제외되어 유지됩니다. 다른 파일이 들어 있는 폴더나 수정 중인 저장소는 덮어쓰지 않고 중단합니다. 기본 경로 대신 다른 경로를 쓰려면 `bash /tmp/eye-install.sh /원하는/설치경로`로 실행합니다.
 
 GitHub에 올리기 전 로컬 수정본을 바로 설치해야 한다면, Mac의 저장소 루트에서 아래 복사 방법도 사용할 수 있습니다.
 
 ```bash
 ssh <사용자>@eye-pi.local 'mkdir -p ~/EyeTracker-pi'
 COPYFILE_DISABLE=1 tar --exclude=.git --exclude=.venv --exclude=.venv-pi \
-  --exclude=__pycache__ --exclude='*-config.json' --exclude=assets/eye_test.mp4 -czf - . \
+  --exclude=__pycache__ --exclude='*-config.json' --exclude=exhibition/assets/eye_test.mp4 -czf - . \
   | ssh <사용자>@eye-pi.local 'tar -xzf - -C ~/EyeTracker-pi'
-ssh -t <사용자>@eye-pi.local 'cd ~/EyeTracker-pi && bash scripts/install-pi.sh'
+ssh -t <사용자>@eye-pi.local 'cd ~/EyeTracker-pi && bash exhibition/scripts/install-pi.sh'
 ```
 
 설치 스크립트가 Python/OpenCV/NumPy/aiohttp를 OS 패키지로 설치하고 `eye-pi.service`를 등록합니다. 일반 SSH 사용자로 실행하세요. 출력된 **Pi UI 사용자 `admin` / 비밀번호**를 기록합니다. 재부팅 후 자동실행하며 카메라나 Mac이 늦게 켜져도 재시도합니다. 설치를 다시 실행해도 저장된 설정은 유지합니다.
@@ -74,15 +74,15 @@ Imager에서 아래 항목을 설정합니다. 화면 이름은 Imager 버전에
 Python 3.10 이상과 이 저장소가 필요합니다. Python이 없다면 [Python 공식 배포](https://www.python.org/downloads/macos/)를 설치하세요.
 
 ```bash
-bash scripts/start-mac.sh
+bash start-mac.sh
 ```
 
-첫 실행은 `.venv`에 라이브러리를 설치합니다. 전시용 두 사용자 시작은 `bash scripts/start-mac.sh --two-users`입니다. Mac 운영 화면은 **http://localhost:8080** (1번), **http://localhost:8081** (2번)입니다. Mac에서 터미널을 켜 둡니다. 서버는 Pi를 받기 위해 `0.0.0.0:8080`에 바인딩하지만 설정·보정·카메라 미리보기는 Mac의 localhost에서만 허용합니다. macOS 방화벽에서 해당 Python의 로컬 네트워크 수신을 허용하세요.
+첫 실행은 `.venv`에 라이브러리를 설치합니다. 전시용 두 사용자 시작은 `bash start-mac.sh --two-users`입니다. Mac 운영 화면은 **http://localhost:8080** (1번), **http://localhost:8081** (2번)입니다. Mac에서 터미널을 켜 둡니다. 서버는 Pi를 받기 위해 `0.0.0.0:8080`에 바인딩하지만 설정·보정·카메라 미리보기는 Mac의 localhost에서만 허용합니다. macOS 방화벽에서 해당 Python의 로컬 네트워크 수신을 허용하세요.
 
 하드웨어 없이 화면/연결/보정 동작을 시험할 때:
 
 ```bash
-bash scripts/start-mac.sh --simulate
+bash start-mac.sh --simulate
 ```
 
 마우스를 빨간 점으로 이동시켜 보정합니다. 이는 테스트 입력이고 실제 카메라 정확도를 검증하지 않습니다. 일반 서버와 동시에 같은 포트에서 실행하지 마세요.
@@ -153,11 +153,11 @@ Mac 중지는 Ctrl+C. Pi 자동실행 중지는 `sudo systemctl disable --now ey
 현재 전시용 Mac 환경 Python 3.12.14 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 총 13개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
 
 ```bash
-.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m unittest discover -s exhibition/tests -v
 ```
 
 - 9점 보정 수학, 잘못된 보정 입력 거부, 중앙값/시간 필터
-- 포함된 `assets/eye_test.mp4`의 실제 트래커 추론 (GUI 호출 없이), 빈 영상 검출 실패
+- 포함된 `exhibition/assets/eye_test.mp4`의 실제 트래커 추론 (GUI 호출 없이), 빈 영상 검출 실패
 - Origin/관리 API 보호, 입력 검증, 설정 저장 권한
 - 시뮬레이션 입력으로 9점 수집→중앙 검증→좌표 출력→stale 무효화→관람객 초기화
 - 실제 JPEG WebSocket 수신/ACK, 잘못된 JPEG 무효화, 중복 카메라 거부, 연결 종료 초기화
@@ -166,7 +166,7 @@ Mac 중지는 Ctrl+C. Pi 자동실행 중지는 `sudo systemctl disable --now ey
 
 Pi OS 패키지 설치와 systemd 부팅은 이 Mac에서 실행하지 않았습니다. Wi-Fi와 실제 GC0308의 성능·정확도 검증도 위 현장 목록대로 별도로 진행해야 합니다.
 
-추가로 `tests/test_install.py`에서 Git 다운로드/재설치, 설정 유지, 기존 파일·수정 코드 보호, 다운로드 실패 처리와 root 실행 거부를 검사했습니다. 이 검사는 git/설치 명령을 대체해 실행하므로 실제 Pi 패키지 설치 결과를 의미하지 않습니다.
+추가로 `exhibition/tests/test_install.py`에서 Git 다운로드/재설치, 설정 유지, 기존 파일·수정 코드 보호, 다운로드 실패 처리와 root 실행 거부를 검사했습니다. 이 검사는 git/설치 명령을 대체해 실행하므로 실제 Pi 패키지 설치 결과를 의미하지 않습니다.
 
 두 사용자 확장 검사에서는 8080/8081에 해당하는 독립 앱의 좌표·토큰·세션·트래커 상태를 확인하고, 사용자 1 초기화/연결 종료 후 사용자 2 상태가 유지되는 것을 검증했습니다. 시작 스크립트의 두 사용자 프로세스 인자와 함께 종료되는 동작도 검사했습니다. 실제 두 Pi의 무선 동시 운용은 현장 검증 대상입니다.
 
@@ -176,4 +176,4 @@ Pi OS 패키지 설치와 systemd 부팅은 이 Mac에서 실행하지 않았습
 
 각 Pi에는 해당 사용자 카드의 **Pi 영상 전송 토큰**을 저장합니다. 별도 작품에는 **작품 시선 구독 토큰**을 전달합니다. “작품 구독에 토큰 요구”를 사용할 때는 학생에게 새 공통 클라이언트와 토큰 전달 예제를 함께 전달하세요. 관리자에서 작품 Origin을 두 사용자 모두에 저장합니다. 이 관리자와 확인 페이지는 Mac localhost 전용입니다. Mac의 OS Wi-Fi 설정, 절전 해제, 로그인 시 서버 자동 실행은 현재 자동화하지 않습니다. 전시 중에는 Mac이 잠자기에 들어가지 않도록 설정하고 서버 터미널을 유지하세요.
 
-통합 관리자 추가 검사에서는 관리 페이지의 localhost 보호, 고정된 2P 서버 중계, 1P 초기화와 2P 초기화의 분리, 서버 연결 실패 표시를 검증합니다. 구독 토큰 검사는 영상 전송 토큰으로 작품 구독이 불가능한지, 시선 구독 토큰이 필요한 설정에서 인증이 적용되는지, 인증 설정 변경 시 기존 구독이 종료되는지 확인합니다. 폴더 정리 이후에도 `tracking/`의 실제 알고리즘과 `assets/eye_test.mp4`로 동일한 회귀 검사를 실행합니다.
+통합 관리자 추가 검사에서는 관리 페이지의 localhost 보호, 고정된 2P 서버 중계, 1P 초기화와 2P 초기화의 분리, 서버 연결 실패 표시를 검증합니다. 구독 토큰 검사는 영상 전송 토큰으로 작품 구독이 불가능한지, 시선 구독 토큰이 필요한 설정에서 인증이 적용되는지, 인증 설정 변경 시 기존 구독이 종료되는지 확인합니다. 폴더 정리 이후에도 `exhibition/tracking/`의 실제 알고리즘과 `exhibition/assets/eye_test.mp4`로 동일한 회귀 검사를 실행합니다.

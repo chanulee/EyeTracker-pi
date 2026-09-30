@@ -14,8 +14,8 @@ class InstallCheck(unittest.TestCase):
         launcher = Path(__file__).resolve().parents[1] / 'scripts' / 'start-mac.sh'
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / 'scripts').mkdir()
-            copy = root / 'scripts' / 'start-mac.sh'
+            (root / 'exhibition' / 'scripts').mkdir(parents=True)
+            copy = root / 'exhibition' / 'scripts' / 'start-mac.sh'
             copy.write_text(launcher.read_text())
             (root / '.venv' / 'bin').mkdir(parents=True)
             executable = root / '.venv' / 'bin' / 'python'
@@ -54,7 +54,7 @@ time.sleep(60)
                 with self.assertRaises(ProcessLookupError): os.kill(launch['pid'], 0)
 
     def test_bootstrap_preserves_existing_files(self):
-        script = Path(__file__).resolve().parents[1] / 'install.sh'
+        script = Path(__file__).resolve().parents[2] / 'install.sh'
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             binaries = root / 'bin'
@@ -68,9 +68,9 @@ mode = os.environ.get('EYE_TEST_MODE', '')
 if args[0] == 'clone':
     assert args[1:4] == ['--depth', '1', '--branch'] and args[4] == 'main'
     assert args[5] == 'https://github.com/chanulee/EyeTracker-pi.git'
-    dest = Path(args[-1]); (dest / 'scripts').mkdir(parents=True); (dest / '.git').mkdir()
+    dest = Path(args[-1]); (dest / 'exhibition' / 'scripts').mkdir(parents=True); (dest / '.git').mkdir()
     if mode == 'fail': sys.exit(1)
-    (dest / 'scripts' / 'install-pi.sh').write_text('printf installed > "$EYE_TEST_LOG"\\n')
+    (dest / 'exhibition' / 'scripts' / 'install-pi.sh').write_text('printf installed > "$EYE_TEST_LOG"\\n')
 else:
     command = args[2:]
     if command[:1] == ['remote']: print('https://other.example/repo.git' if mode == 'wrong' else 'https://github.com/chanulee/EyeTracker-pi.git')

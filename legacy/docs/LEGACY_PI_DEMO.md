@@ -1,8 +1,8 @@
-> **이 문서는 기존 학생 MJPEG/Windows 데모입니다.** 새 Pi Zero 2 W → Mac mini WebSocket 구성은 [한국어 운영 매뉴얼](SETUP_KO.md)을 사용하세요. 기존 파일은 참고용으로 유지합니다.
+> **이 문서는 기존 학생 MJPEG/Windows 데모입니다.** 새 Pi Zero 2 W → Mac mini WebSocket 구성은 [한국어 운영 매뉴얼](../../exhibition/docs/SETUP_KO.md)을 사용하세요. 기존 파일은 참고용으로 유지합니다.
 
 # Raspberry Pi Eye Tracker Test Demo
 
-저장소 정리 후 카메라 송신기는 `legacy/ForRaspberrypi/pi_camera_stream.py`, 커서 서버와 HTML은 `tracking/gaze_cursor_server.py`, `tracking/gaze_demo.html`에 있습니다. 아래 예전 실행 설명에서 파일을 복사할 때 이 경로를 사용하세요.
+저장소 정리 후 카메라 송신기는 `legacy/ForRaspberrypi/pi_camera_stream.py`, 커서 서버와 HTML은 `legacy/3DTracker/gaze_cursor_server.py`, `legacy/3DTracker/gaze_demo.html`에 있습니다. 아래 예전 실행 설명에서 파일을 복사할 때 이 경로를 사용하세요.
 
 This project uses the 3D eye tracker from [JEOresearch/EyeTracker](https://github.com/JEOresearch/EyeTracker), with a Raspberry Pi as a wireless eye camera.
 
@@ -107,7 +107,7 @@ python pi_camera_stream.py
 ### 3.2 Laptop: start the 3D tracker (VS Code terminal 1)
 
 ```
-cd C:\eyetrack\EyeTracker\tracking
+cd C:\eyetrack\EyeTracker\legacy\3DTracker
 .\venv\Scripts\Activate.ps1
 python Orlosky3DEyeTracker.py
 ```
@@ -124,7 +124,7 @@ The tracker now writes your gaze direction to `gaze_vector.txt`.
 Click **+** in the terminal panel to open a second terminal:
 
 ```
-cd C:\eyetrack\EyeTracker\tracking
+cd C:\eyetrack\EyeTracker\legacy\3DTracker
 .\venv\Scripts\Activate.ps1
 python gaze_cursor_server.py
 ```
