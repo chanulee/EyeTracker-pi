@@ -5,3 +5,4 @@ gaze_vector.txt
 .venv-pi/
 exhibition/*-config.json
 exhibition/*-config.tmp
+.DS_Store
