@@ -2,7 +2,7 @@
 
 단안·아래쪽 카메라의 **Pupil Labs 3D 방향 실험**은 `bash start-pupil.sh`로 실행합니다. 이 Mac에 별도 실행 환경을 설치했고, 관리자에 동공 타원·카메라 기준 단위 벡터·정면 기준 상대 각도를 표시합니다. [3D 실험 실행 안내](exhibition/docs/PUPIL3D_KO.md)를 참고하세요. 예시 작품에서 착용 확인·정면 안내·9점 보정·3점 검증 후 두 시선 커서를 사용할 수 있습니다. 현장 정확도·지속 24 FPS 검증은 별도입니다.
 
-현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash start-mac.sh`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](exhibition/docs/MAC_MINI_KO.md)에 있습니다.
+현재 전시용 Mac에는 실행 환경과 로그인 자동실행이 설치되어 있습니다. Mac 로그인 후 Pupil 3D 서버와 작품 페이지가 시작됩니다. [통합 관리자](http://localhost:8080/admin)에서 상태를 확인합니다. Pi 연결 설정과 관람객 보정은 별도로 진행합니다. 수동 개발 실행은 자동 서비스를 먼저 중지한 뒤 `bash start-mac.sh` 또는 `bash start-pupil.sh`를 사용합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](exhibition/docs/MAC_MINI_KO.md)에 있습니다.
 
 저장소는 **`exhibition/` — 현재 전시에 필요한 모든 것**, **`legacy/` — 현재 전시에서 사용하지 않는 원본 실험과 이전 데모**로 나뉩니다. 루트 `start-mac.sh`는 Mac 실행 진입점입니다. [문서 목록](exhibition/docs/README.md)과 [폴더 이동표](exhibition/docs/REPOSITORY_KO.md)를 참고하세요.
 
@@ -56,7 +56,7 @@ bash start-mac.sh --two-users
 | 웹 작품이 구독할 주소 | `ws://localhost:8080/gaze` | `ws://localhost:8081/gaze` |
 | 메시지 `user_id` | `1` | `2` |
 
-설정 파일은 자동 생성되고 Git에서 제외됩니다. 이전 단일 사용자 설정은 사용자 1에서 그대로 사용합니다. Mac 방화벽에서 Python의 수신을 허용하고 두 포트가 모두 접근 가능한지 확인하세요. Ctrl+C로 두 서버를 함께 종료합니다. Pi는 부팅 자동실행하며, Mac 서버는 현재 이 명령으로 직접 시작합니다.
+설정 파일은 자동 생성되고 Git에서 제외됩니다. 이전 단일 사용자 설정은 사용자 1에서 그대로 사용합니다. Mac 방화벽에서 Python의 수신을 허용하고 두 포트가 모두 접근 가능한지 확인하세요. Ctrl+C로 두 서버를 함께 종료합니다. Pi는 부팅 자동실행하며, 현재 전시 Mac은 로그인 자동실행도 설치되어 있습니다. 위 명령은 자동 서비스를 중지한 뒤 수동 개발에 사용합니다.
 
 장비 없이 두 운영 화면을 시험하려면:
 
@@ -165,4 +165,18 @@ cd ~/EyeTracker-pi
 bash exhibition/scripts/update-pi.sh
 ```
 
-Mac 코드는 해당 Mac 저장소를 업데이트한 후 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh`로 다시 시작합니다. 전시 운용 중 업데이트하면 연결과 보정이 초기화되므로 새로 보정합니다.
+자동실행 Mac은 저장소를 업데이트한 뒤 `bash setup-autostart-mac.sh install`로 실행본을 갱신합니다. 수동 개발 서버는 Ctrl+C로 종료하고 해당 엔진으로 다시 시작합니다. 전시 운용 중 업데이트하면 연결과 보정이 초기화되므로 새로 보정합니다.
+
+## 전원 켜기와 자동 복구
+
+현재 전시 Mac에는 로그인 자동실행을 설치했습니다. Mac 로그인 후 Pupil 3D 1P·2P 서버와 작품 페이지가 시작되고, Pi는 부팅 시 저장된 주소·토큰으로 자동 송출합니다. Mac은 로그인 자체를 자동화하지 않습니다. 관람객마다 시선 보정은 필요합니다.
+
+```bash
+bash setup-autostart-mac.sh status
+# Mac 코드 업데이트 후 실행본 갱신
+bash setup-autostart-mac.sh install
+```
+
+자동실행 프로그램은 `~/Library/Application Support/EyeTracker-pi/app`, 실제 운영 설정은 `state/`에 유지합니다. 최초 설치 때 기존 설정을 복사하며 재설치 시 운영 설정을 덮어쓰지 않습니다. 저장소 수정 후 위 install 명령으로 반영하세요. 중지/시작/재시작/해제는 같은 스크립트의 `stop/start/restart/remove`를 사용합니다.
+
+Pi의 카메라 선택은 USB 자동 검색이 기본입니다. 영상 캡처 노드만 선택하고 metadata/내부 코덱 노드는 제외합니다. FPS·품질 변경은 USB 장치를 닫지 않습니다. 카메라가 끊기면 장치를 해제하고 2초마다 재검색하며, 드라이버가 멈추면 systemd watchdog이 송신기를 재시작합니다. 이번 Pi 변경은 GitHub main에 올린 뒤 Pi 설치/업데이트 스크립트를 실행해야 적용됩니다. USB 컨트롤러나 전원 문제로 장치 자체가 반환되지 않으면 소프트웨어 재시도만으로 복구하지 못할 수 있습니다. [자동실행·USB 복구 안내](exhibition/docs/AUTOSTART_KO.md)를 참고하세요.

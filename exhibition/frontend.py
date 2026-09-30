@@ -1,5 +1,6 @@
 """Separate localhost example frontend; replace its static page or use another server."""
 from pathlib import Path
+import os
 from urllib.parse import urlsplit
 
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
@@ -9,7 +10,8 @@ from .common import load_config
 HERE = Path(__file__).parent
 
 
-def create_app(config_dir=HERE, worker_ports=(8080, 8081)):
+def create_app(config_dir=None, worker_ports=(8080, 8081)):
+    config_dir = Path(config_dir) if config_dir is not None else Path(os.environ.get('EYE_STATE_DIR', HERE))
     @web.middleware
     async def local_only(request, handler):
         if request.remote not in ('127.0.0.1', '::1') or urlsplit('http://' + request.host).hostname not in ('localhost', '127.0.0.1', '::1'):

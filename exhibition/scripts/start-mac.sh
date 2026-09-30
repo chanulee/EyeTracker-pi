@@ -3,6 +3,7 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo_dir"
 python_bin="${EYE_PYTHON:-.venv/bin/python}"
+state_dir="${EYE_STATE_DIR:-exhibition}"
 # Explicit single-user mode is retained for development.
 if [ "${1:-}" = --single-user ]; then
   shift
@@ -41,9 +42,9 @@ done
 set --
 if [ "$simulate" -eq 1 ]; then set -- --simulate; fi
 "$python_bin" -c 'from exhibition.startup import prepare; prepare()'
-"$python_bin" -m exhibition.mac --worker --user-id 1 --port 8080 --config exhibition/mac-config.json "$@" &
+"$python_bin" -m exhibition.mac --worker --user-id 1 --port 8080 --config "$state_dir/mac-config.json" "$@" &
 user1_pid=$!
-"$python_bin" -m exhibition.mac --worker --user-id 2 --port 8081 --config exhibition/mac-user2-config.json "$@" &
+"$python_bin" -m exhibition.mac --worker --user-id 2 --port 8081 --config "$state_dir/mac-user2-config.json" "$@" &
 user2_pid=$!
 frontend_pid=
 cleanup() {

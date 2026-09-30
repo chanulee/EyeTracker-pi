@@ -34,6 +34,7 @@ cat > "$service_file" <<EOF
 Description=Eye camera WebSocket sender and settings UI
 Wants=network-online.target
 After=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -41,8 +42,10 @@ User=$(id -un)
 SupplementaryGroups=video
 WorkingDirectory=$repo_dir
 ExecStart="$repo_dir/.venv-pi/bin/python" -m exhibition.pi --config "$repo_dir/exhibition/pi-config.json"
-Restart=on-failure
+Restart=always
 RestartSec=3
+WatchdogSec=30
+NotifyAccess=main
 Environment=PYTHONUNBUFFERED=1
 UMask=0077
 NoNewPrivileges=true

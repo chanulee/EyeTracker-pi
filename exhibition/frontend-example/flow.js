@@ -32,7 +32,9 @@ export async function runCalibration(h) {
  await h.action('fit');h.check();
  const warm=[[.5,.5],[.2,.5],[.8,.5],[.5,.2],[.5,.8]];let step=0;
  while(!h.read().g.ready){
-  h.show({phase:'model',title:'점을 따라 눈을 움직여주세요',message:'동공과 3D 방향 모델을 준비하고 있어요. 안경과 머리 위치를 유지하세요.',point:warm[Math.floor(step/18)%warm.length],progress:0});
+  const {g,stats}=h.read();
+  const message=!g.camera_connected&&!stats.simulate?'Pi 카메라 연결을 기다리고 있어요. 라이브 영상과 Pi 연결을 확인하세요.':!stats.pupil_detected&&!stats.simulate?'동공을 찾고 있어요. 라이브 영상에 눈이 들어오도록 카메라 위치를 조절하세요.':'동공과 3D 방향 모델을 준비하고 있어요. 안경과 머리 위치를 유지하며 점을 따라보세요.';
+  h.show({phase:'model',title:'점을 따라 눈을 움직여주세요',message,point:warm[Math.floor(step/18)%warm.length],progress:0});
   await h.pause(100);h.check();step++;
  }
  const session=await attempt(()=>request({action:'begin',viewport:h.viewport()}),{phase:'model',title:'방향 모델을 확인하고 있어요'});

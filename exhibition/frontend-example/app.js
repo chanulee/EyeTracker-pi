@@ -12,10 +12,14 @@ function refreshCard(p){
  p.card.querySelector('.connection').textContent=stats.simulate?'시뮬레이션 · 실제 눈 아님':g.camera_connected?'카메라 연결됨':'카메라 대기';
  p.card.querySelector('.tracking').textContent=g.valid?'보정된 시선 수신 중':g.tracking?(g.ready?'방향 모델 준비 완료':'방향 모델 준비 중'):stats.pupil_detected?'동공 확인 · 방향 모델 준비 중':'동공 입력 대기';
  p.card.querySelector('.performance').textContent=`${stats.processing_fps??'—'} FPS · ${stats.processing_ms??'—'} ms`;
- p.card.querySelector('.start').disabled=Boolean(active)||!(g.camera_connected||stats.simulate);
+ p.card.querySelector('.start').disabled=Boolean(active);
  if(stats.simulate)p.card.querySelector('.placeholder').textContent='마우스로 점을 따라보는 테스트';
  if(g.calibrated && !active && !p.invalidating)p.card.querySelector('.result').textContent=!viewportMatches(g.calibration_viewport,innerWidth,innerHeight)?'화면 크기가 바뀌었어요. 다시 보정해주세요.':p.calibrationResult==null?'보정 완료 · 시선으로 커서를 움직여보세요':`보정 완료 · 확인 오차 ${(p.calibrationResult*100).toFixed(1)}%`;
- if(active?.id===p.id && active.phase==='fit')$('continue').disabled=!(stats.pupil_detected||stats.simulate);
+ if(active?.id===p.id && active.phase==='fit'){
+  $('continue').disabled=!(p.previewURL||stats.simulate);
+  if(!stats.simulate&&!p.previewURL)$('cal-message').textContent='눈 영상을 기다리고 있어요. Pi가 연결되면 착용 완료를 누를 수 있습니다.';
+  else $('cal-message').textContent=stats.pupil_detected||stats.simulate?'눈 영상에서 초록 타원이 동공을 따라가는지 확인하고 착용 완료를 눌러주세요.':'카메라에 눈이 보이도록 위치를 맞추고 착용 완료를 누르세요. 다음 단계에서 동공과 방향 모델을 확인합니다.';
+ }
 }
 function clearCursor(p){p.target=p.position=null;p.cursor.hidden=true;}
 function clearPreview(p){

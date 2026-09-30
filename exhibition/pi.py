@@ -6,6 +6,7 @@ import contextlib
 from collections import deque
 import hmac
 import logging
+import os
 from pathlib import Path
 import secrets
 import socket
@@ -17,10 +18,11 @@ from aiohttp import web
 import cv2
 
 from .common import load_config, number, receiver_url, save_config
+from .camera_device import select_camera
 
 LOG = logging.getLogger('eye-pi')
 DEFAULTS = dict(receiver='ws://mac-mini.local:8080/camera', token='', camera=0,
-                width=320, height=240, fps=20, quality=65, flip=False, transport='auto', admin_password='')
+                width=320, height=240, fps=20, quality=65, flip=False, transport='auto', camera_mode='auto', admin_password='')
 
 
 def jpeg_size(data):
@@ -53,7 +55,7 @@ def jpeg_size(data):
 
 
 def capture_settings(config):
-    return tuple(config[key] for key in ('camera', 'width', 'height', 'fps', 'flip', 'transport'))
+    return tuple(config.get(key) for key in ('camera', 'camera_mode', 'width', 'height', 'flip', 'transport'))
 
 
 class FrameRateGate:
@@ -78,6 +80,8 @@ def validate(data):
     if set(data) - (set(DEFAULTS) - {'admin_password'}):
         raise ValueError('알 수 없는 설정')
     result = dict(data)
+    if 'camera_mode' in data and data['camera_mode'] not in ('auto', 'manual'):
+        raise ValueError('카메라 선택은 auto 또는 manual입니다')
     if 'transport' in data and data['transport'] not in ('auto', 'decoded'):
         raise ValueError('영상 전송 방식은 auto 또는 decoded입니다')
     if 'receiver' in data:
@@ -105,6 +109,11 @@ class Camera:
                                  fps_request_accepted=None, transport_mode='대기', transport_note=None)
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.native_failed = None
+        self.device_identity = None
+        self.selection = (self.config['camera'], self.config.get('camera_mode', 'auto'))
+        self.progress = time.monotonic()
+        self.retry_count = 0
+        self.recoveries = 0
         self.capture_times = deque(maxlen=90)
         self.output_times = deque(maxlen=90)
 
@@ -121,23 +130,36 @@ class Camera:
             return dict(self.capture_info, output_width=self.capture_info['capture_width'] if native else self.config['width'],
                         output_height=self.capture_info['capture_height'] if native else self.config['height'],
                         captured_fps=fps(self.capture_times), output_fps=fps(self.output_times),
-                        requested_fps=self.config['fps'])
+                        requested_fps=self.config['fps'], camera_requested_fps=30,
+                        camera_retry_count=self.retry_count, camera_recoveries=self.recoveries)
 
     def run(self):
         while not self.stop.is_set():
             settings = dict(self.config)
+            selection = (settings['camera'], settings.get('camera_mode', 'auto'))
+            if selection != self.selection:
+                self.device_identity = None
+                self.selection = selection
             geometry = capture_settings(settings)
             native = settings['transport'] == 'auto' and not settings['flip'] and self.native_failed != geometry
-            cap = cv2.VideoCapture(settings['camera'], cv2.CAP_V4L2)
+            cap = None
+            failed = False
+            self.progress = time.monotonic()
             try:
+                device = select_camera(settings, self.device_identity)
+                with self.lock:
+                    self.capture_info.update(camera_device=device['path'], camera_node=device['node'],
+                                             camera_name=device['name'], camera_bus=device['bus'], camera_state='opening')
+                cap = cv2.VideoCapture(device['path'], cv2.CAP_V4L2)
+                if not cap.isOpened():
+                    raise RuntimeError(f"카메라를 열 수 없습니다: {device['node']}. 자동 재시도합니다")
                 if native:
                     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, settings['width'])
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, settings['height'])
-                fps_accepted = cap.set(cv2.CAP_PROP_FPS, settings['fps'])
+                # The UI FPS is a hot output limit, not a repeated USB mode negotiation.
+                fps_accepted = cap.set(cv2.CAP_PROP_FPS, 30)
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                if not cap.isOpened():
-                    raise RuntimeError('카메라를 열 수 없습니다. /dev/video 번호를 확인하세요')
                 if native and not cap.set(cv2.CAP_PROP_CONVERT_RGB, 0):
                     self.native_failed = geometry
                     continue  # Reopen normally when raw JPEG capture is unsupported.
@@ -146,7 +168,9 @@ class Camera:
                     self.capture_info.update(camera_reported_fps=reported_fps if reported_fps > 0 else None,
                                              fps_request_accepted=bool(fps_accepted))
                 gate = FrameRateGate(settings['fps'])
+                gate_fps = settings['fps']
                 while not self.stop.is_set() and geometry == capture_settings(self.config):
+                    self.progress = time.monotonic()
                     ok, frame = cap.read()
                     if not ok:
                         raise RuntimeError('카메라 프레임 읽기 실패')
@@ -165,6 +189,10 @@ class Camera:
                                                  transport_mode='camera-mjpeg' if native else 'pi-jpeg',
                                                  transport_note=None if native else 'Pi에서 JPEG 인코딩 (MJPEG 미지원 또는 회전/수동 모드)')
                     now = time.monotonic()
+                    self.progress = now
+                    if self.config['fps'] != gate_fps:
+                        gate_fps = self.config['fps']
+                        gate = FrameRateGate(gate_fps)
                     if not gate.accept(now):
                         continue
                     if native:
@@ -183,18 +211,43 @@ class Camera:
                             self.output_times.append(now)
                             self.latest = (now, jpg)
                             self.status = '카메라 정상'
+                            self.capture_info['camera_state'] = 'streaming'
+                            if self.retry_count:
+                                self.recoveries += 1
+                                self.retry_count = 0
+                            self.device_identity = device['identity']
             except Exception as error:
                 LOG.warning('%s', error)
-                if native:
-                    self.native_failed = geometry
+                failed = True
+                self.native_failed = None  # A USB outage is not proof that MJPEG is unsupported.
                 with self.lock:
+                    self.retry_count += 1
                     self.latest = None
                     self.status = str(error)
                     self.capture_info.update(capture_width=None, capture_height=None, camera_reported_fps=None,
-                                             fps_request_accepted=None, transport_mode='대기', transport_note=None)
-                self.stop.wait(2)
+                                             fps_request_accepted=None, transport_mode='대기', transport_note=None,
+                                             camera_state='retrying')
             finally:
-                cap.release()
+                if cap is not None:
+                    cap.release()
+            if failed:
+                self.stop.wait(2)  # Release the driver before waiting/re-enumerating USB nodes.
+
+
+async def watchdog(camera):
+    """Let systemd restart a process whose capture thread is stuck in a driver call."""
+    address = os.environ.get('NOTIFY_SOCKET')
+    if not address:
+        return
+    if address.startswith('@'):
+        address = '\0' + address[1:]
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as notifier:
+        notifier.setblocking(False)
+        while True:
+            if camera.thread.is_alive() and time.monotonic() - camera.progress < 15:
+                with contextlib.suppress(OSError):
+                    notifier.sendto(b'WATCHDOG=1', address)
+            await asyncio.sleep(5)
 
 
 def create_app(config_path):
@@ -233,7 +286,7 @@ def create_app(config_path):
             raise web.HTTPBadRequest(text=str(error))
         updated = dict(config, **data)
         reconnect = any(updated[key] != config[key] for key in
-                        ('receiver', 'token', 'camera', 'width', 'height', 'flip', 'transport'))
+                        ('receiver', 'token', 'camera', 'camera_mode', 'width', 'height', 'flip', 'transport'))
         save_config(config_path, updated)
         config.update(data)
         camera.config = dict(config)
@@ -261,6 +314,11 @@ def create_app(config_path):
                     if len(config['token']) < 16:
                         await asyncio.sleep(1)
                         continue
+                    _, latest, _ = camera.snapshot()
+                    if not latest or time.monotonic() - latest[0] > .35:
+                        connection.update(connected=False, message='카메라 복구 대기 · 저장된 Mac 설정은 유지합니다')
+                        await asyncio.sleep(.5)
+                        continue
                     async with session.ws_connect(config['receiver'], headers={'Authorization': 'Bearer ' + config['token']},
                                                   heartbeat=10, max_msg_size=1024) as ws:
                         active = ws
@@ -268,6 +326,8 @@ def create_app(config_path):
                         last_sequence = -1
                         while not ws.closed:
                             seq, latest, _ = camera.snapshot()
+                            if latest is None:
+                                raise RuntimeError('카메라 연결이 끊겨 보정 세션을 초기화합니다')
                             if seq == last_sequence or not latest or time.monotonic() - latest[0] > .35:
                                 await asyncio.sleep(.01)
                                 continue
@@ -287,10 +347,14 @@ def create_app(config_path):
     async def lifecycle(app):
         camera.thread.start()
         task = asyncio.create_task(sender())
+        supervisor = asyncio.create_task(watchdog(camera))
         yield
         task.cancel()
+        supervisor.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
+        with contextlib.suppress(asyncio.CancelledError):
+            await supervisor
         camera.stop.set()
         await asyncio.to_thread(camera.thread.join, 3)
 

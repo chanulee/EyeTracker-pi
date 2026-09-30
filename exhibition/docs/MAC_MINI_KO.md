@@ -4,9 +4,13 @@
 
 이 저장소의 `.venv/`에 Python 3.12.14, aiohttp 3.14.3, NumPy 2.5.3, OpenCV 4.14.0이 설치되었습니다. Python은 이 Mac의 Codex 제공 런타임을 기반으로 하며 시스템 Python을 변경하지 않았습니다. 기반 런타임이 제거되거나 저장소를 다른 컴퓨터로 복사하면 Python 3.10 이상의 환경으로 `.venv`를 다시 만들어야 합니다.
 
-Mac 서버 소프트웨어와 관리자 UI의 실행 준비는 완료했습니다. 실제 Pi 두 대의 설치·네트워크 연결·카메라 영상·현장 정확도 검증은 이 기록에 포함하지 않습니다. 로그인 시 자동 실행과 macOS 절전 설정도 구성하지 않았습니다. 라이브러리 설치 완료와 전시 전체 셋업 완료는 구분합니다.
+Mac 서버 소프트웨어와 관리자 UI의 실행 준비는 완료했습니다. 실제 Pi 두 대의 설치·네트워크 연결·카메라 영상·현장 정확도 검증은 이 기록에 포함하지 않습니다. 현재 로그인 자동실행도 설치했습니다. 실행 중 `caffeinate`로 화면·시스템의 유휴 잠자기를 억제합니다. 라이브러리 설치 완료와 전시 전체 셋업 완료는 구분합니다.
 
 ## 시작과 종료
+
+현재 설치된 자동실행의 실제 설정은 `~/Library/Application Support/EyeTracker-pi/state/`에 있습니다. 최초 설치 때 저장소의 토큰·Origin·작품 주소를 복사했고 이후 재설치 시 운영 중 설정을 유지합니다. 프로그램은 같은 위치의 `app/`, 로그는 `app/exhibition/.runtime/`에 있습니다. macOS 로그인 서비스가 Documents 저장소를 읽지 못해 Application Support에 실행본을 설치했습니다. 저장소를 수정해도 실행본이 즉시 바뀌지 않으므로 `bash setup-autostart-mac.sh install`로 갱신하세요.
+
+아래는 수동 개발 실행입니다. 자동 서비스를 먼저 `bash setup-autostart-mac.sh stop`으로 중지해야 합니다.
 
 Mac 터미널에서 실행합니다.
 
@@ -25,7 +29,7 @@ bash start-mac.sh --two-users --simulate
 
 시뮬레이션의 각 보정 화면에서 마우스로 점을 따라갑니다. 시뮬레이션에서는 실제 Pi 연결을 받지 않습니다. [두 커서 확인 화면](http://localhost:8080/stage)은 각 사용자의 보정이 완료되면 같은 화면 전체에 두 좌표를 표시합니다. 실제 전시로 돌아갈 때 Ctrl+C로 종료하고 `--simulate` 없이 시작합니다.
 
-Mac 서버는 부팅할 때 자동으로 켜지지 않습니다. 전시 시작 때 위 명령을 실행합니다. 종료는 서버 터미널에서 Ctrl+C입니다. 전시 중 잠자기에 들어가지 않도록 Mac 설정을 확인하세요. Pi는 별도의 설치 스크립트를 실행하면 systemd로 부팅 자동 실행됩니다.
+이 Mac은 재부팅 후 사용자 로그인 시 Pupil 3D 서버 두 개와 작품 페이지가 자동으로 시작됩니다. 로그인 전에는 시작하지 않으며 자동 로그인·FileVault 설정은 바꾸지 않습니다. 서버가 이미 켜져 있으면 수동 시작 명령을 중복 실행하지 마세요. 자동실행은 `bash setup-autostart-mac.sh status/start/stop/restart/install/remove`로 관리합니다. `stop`은 이번 로그인 세션에서만 중지하고 `remove`는 다음 로그인 자동실행도 해제합니다. Pi는 systemd로 부팅 자동 실행됩니다. [자동실행·복구 상세](AUTOSTART_KO.md)를 참고하세요.
 
 ## 다음 현장 준비
 
@@ -56,4 +60,4 @@ cd ~/EyeTracker-pi
 bash exhibition/scripts/update-pi.sh
 ```
 
-Mac 코드는 해당 Mac 저장소를 업데이트한 후 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh`로 다시 시작합니다. 전시 운용 중 업데이트하면 연결과 보정이 초기화되므로 새로 보정합니다.
+자동실행 Mac은 저장소를 업데이트한 뒤 `bash setup-autostart-mac.sh install`로 실행본을 갱신합니다. 수동 개발은 서버를 Ctrl+C로 종료하고 해당 엔진으로 다시 시작합니다. 전시 운용 중 업데이트하면 연결과 보정이 초기화되므로 새로 보정합니다.

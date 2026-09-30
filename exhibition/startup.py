@@ -12,7 +12,8 @@ import webbrowser
 
 from .common import load_config, save_config
 
-SETTINGS = Path(__file__).parent / 'server-config.json'
+STATE_DIR = Path(os.environ.get('EYE_STATE_DIR', Path(__file__).parent))
+SETTINGS = STATE_DIR / 'server-config.json'
 ADMIN = 'http://localhost:8080/admin'
 
 
@@ -52,7 +53,7 @@ def prepare():
                 raise SystemExit('예시 작품의 5173 포트가 사용 중입니다. 기존 작품을 연결하려면 --frontend-url 주소를 지정하세요.')
         from .mac import DEFAULTS
         for filename in ('mac-config.json', 'mac-user2-config.json'):
-            path = Path(__file__).parent / filename
+            path = STATE_DIR / filename
             worker = load_config(path, DEFAULTS)
             if 'http://localhost:5173' not in worker['allowed_origins']:
                 worker['allowed_origins'].append('http://localhost:5173')
@@ -123,3 +124,8 @@ def announce():
                 print('브라우저를 자동으로 열지 못했어요. 위 관리자 링크를 직접 여세요.', flush=True)
         except webbrowser.Error:
             print('위 관리자 링크를 브라우저에서 여세요.', flush=True)
+    if os.environ.get('EYE_OPEN_FRONTEND') == '1' and frontend:
+        try:
+            webbrowser.open(frontend)
+        except webbrowser.Error:
+            print('위 작품 링크를 브라우저에서 여세요.', flush=True)

@@ -12,3 +12,5 @@
 | [TRACKING_DESIGN_KO.md](TRACKING_DESIGN_KO.md) | 근접 추적·착용 안내 개발안, Apple Vision 조사와 24 FPS 개선 |
 
 원본 소개와 이전 데모 문서는 [legacy/docs](../../legacy/docs/)에 있습니다.
+
+- [전원 켜기·Mac 로그인 자동실행·Pi USB 자동 복구](AUTOSTART_KO.md)

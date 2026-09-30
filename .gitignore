@@ -6,4 +6,5 @@ gaze_vector.txt
 .venv-pupil/
 exhibition/*-config.json
 exhibition/*-config.tmp
+exhibition/.runtime/
 .DS_Store

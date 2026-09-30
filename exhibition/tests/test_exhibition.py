@@ -3,6 +3,7 @@ import asyncio
 import base64
 from pathlib import Path
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -19,6 +20,12 @@ from exhibition.pi import create_app as pi_app, DEFAULTS as PI_DEFAULTS, validat
 
 
 class MathCheck(unittest.TestCase):
+    def setUp(self):
+        selector = patch('exhibition.pi.select_camera', return_value=dict(path='/dev/video0', node='/dev/video0',
+                         identity='usb-eye', name='Test camera', bus='usb-1'))
+        selector.start()
+        self.addCleanup(selector.stop)
+
     def test_fractional_fps_gate(self):
         # A 30 FPS camera must produce 20/24 FPS, not 15 FPS by alternate skipping.
         for fps in (20, 24, 30):
@@ -116,12 +123,14 @@ class MathCheck(unittest.TestCase):
 
         with patch('exhibition.pi.cv2.VideoCapture', return_value=Capture()):
             camera.run()
-        self.assertIn((cv2.CAP_PROP_FPS, 15), calls)
+        self.assertIn((cv2.CAP_PROP_FPS, 30), calls)
         info = camera.diagnostics()
         self.assertEqual((info['capture_width'], info['capture_height']), (640, 480))
         self.assertEqual((info['output_width'], info['output_height']), (320, 240))
         self.assertFalse(info['fps_request_accepted'])
         self.assertEqual(info['camera_reported_fps'], 30.)
+        self.assertEqual(info['requested_fps'], 15)
+        self.assertEqual(info['camera_requested_fps'], 30)
         jpg = camera.snapshot()[1][1]
         self.assertEqual(cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_GRAYSCALE).shape, (240, 320))
 
@@ -372,11 +381,13 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(ok)
         _, jpg = cv2.imencode('.jpg', cv2.resize(frame, (320, 240)))
 
+        available = threading.Event()
+        available.set()
         def fake_camera(camera):
             while not camera.stop.is_set():
                 with camera.lock:
                     camera.sequence += 1
-                    camera.latest = (time.monotonic(), jpg.tobytes())
+                    camera.latest = (time.monotonic(), jpg.tobytes()) if available.is_set() else None
                     camera.status = 'test camera'
                 camera.stop.wait(.03)
 
@@ -406,6 +417,14 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
                 await wait_for(lambda: runtime.seq > previous_sequence + 3)
                 self.assertEqual(runtime.session, previous_session)
                 self.assertIs(runtime.model, model)
+                available.clear()
+                await wait_for(lambda: runtime.receiver is None)
+                self.assertFalse(runtime.packet()['valid'])
+                self.assertIsNone(runtime.model)
+                available.set()
+                await wait_for(lambda: runtime.receiver is not None and runtime.session != previous_session
+                               and runtime.seq > previous_sequence)
+                previous_session = runtime.session
                 previous_sequence = runtime.seq
                 await runtime.receiver.close()
                 await wait_for(lambda: runtime.receiver is not None and runtime.session != previous_session
