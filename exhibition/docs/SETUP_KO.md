@@ -99,7 +99,7 @@ Pi UI는 값을 입력한 뒤 **설정 저장**을 누르면 적용합니다. FP
 
 ## 4. 관람객 교체와 보정
 
-현재 예시 작품에서는 `http://localhost:5173` 한 화면에서 진행합니다. 해당 사용자 카드의 **착용 확인 · 보정 시작**을 눌러 라이브 눈 영상 확인 → 착용 완료 → 모델 준비 → 정면 안내 → 9점 수집 → 별도의 3점 검증을 따라갑니다. Pupil 엔진은 정면 방향도 자동 수집합니다. 실패한 점은 같은 위치에서 재시도할 수 있고 취소/Esc는 해당 사용자 보정만 폐기합니다. 보정 전 점선 커서는 임시 위치이며 인터랙션에 사용하지 않습니다. 완료 후에는 서버 안정화와 브라우저 보간으로 실선 커서를 표시합니다. 영상이 끊기면 커서를 숨깁니다. 화면 크기가 바뀌면 다시 보정하세요.
+현재 전시에서는 `http://localhost:5173/app`에서 Pi 영상과 동공 검출을 확인하고 **보정 시작**을 누릅니다. 착용 후 눈 모델이 준비되면 해당 참가자의 시작 버튼 → 정면 안내 → 9점 수집 → 독립 3점 검증 → 참여 시작 순서로 진행합니다. 실패한 점은 다시 시작을 눌러 재시도하고 Esc로 취소합니다. 유효한 보정 좌표만 커서에 사용하며 영상·소켓이 끊기거나 화면 크기가 바뀌면 숨깁니다. 브라우저 웹캠 추적은 실행하지 않습니다.
 
 아래 순서는 기존 8080/8081 운영 화면의 보정입니다.
 
@@ -186,7 +186,7 @@ Pi OS 패키지 설치와 systemd 부팅은 이 Mac에서 실행하지 않았습
 
 `bash start-mac.sh`는 1P·2P compute worker와 `http://localhost:5173` 예시 작품 서버를 함께 시작합니다. 터미널에는 Pi SW → Mac mini compute server → 작품 프론트엔드 구조, 각 Pi의 실제 LAN 수신 주소와 연결 상태, 통합 관리자 URL, 작품 URL과 구독 주소가 표시됩니다. OpenGL은 전시의 GUI 없는 추론 경로에서 불러오지 않습니다. 준비가 끝나면 기본 브라우저로 관리자를 엽니다. 자동 열기를 끄려면 `--no-open`을 추가합니다.
 
-예시 작품은 `exhibition/frontend-example/index.html`만 교체하면 됩니다. 다른 작품 서버를 사용하려면 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh --frontend-url http://localhost:5173`처럼 실행합니다. 이때 내장 예시는 시작하지 않으므로 작품 개발 서버를 별도로 실행하세요. 지정 주소는 `exhibition/server-config.json`에 저장됩니다. `--frontend-url ''`는 내장 예시로 복귀합니다. 내장 예시 Origin은 자동 등록하며 외부 작품 Origin은 두 사용자 관리자 카드에 등록하세요. 단일 사용자 개발은 `bash start-mac.sh --single-user`입니다.
+전시 작품은 `exhibition/frontend-example/`의 Next.js 서버이며 `http://localhost:5173`에서 실행합니다. Mac 연결 코드는 `exhibition/frontend-integration/`에서 관리합니다. 작품 서버의 HTTP/WebSocket 연결 지점과 `EntryFlowContext.jsx`의 엔진 연결만 유지하면 작품 화면은 별도로 수정할 수 있습니다. 같은 작품 주소의 `/gaze?user_id=1`과 `/gaze?user_id=2`가 각 Mac worker를 중계합니다. 영상·보정 API는 localhost bridge(5174)를 통해 연결하고, 시선 구독 토큰은 서버 안에서 처리합니다. [연결·업데이트 안내](../frontend-integration/README.md)를 참고하세요.
 
 ## 토큰·Mac 주소·Pi 업데이트
 

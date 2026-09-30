@@ -1,9 +1,10 @@
-"""Separate localhost example frontend; replace its static page or use another server."""
+"""Local compute bridge for the separately maintained exhibition frontend."""
 from pathlib import Path
 import os
 from urllib.parse import urlsplit
 
-from aiohttp import web, ClientSession, ClientTimeout, ClientError
+from aiohttp import web, ClientSession, ClientTimeout, ClientError, WSMsgType
+import asyncio
 
 from .common import load_config
 
@@ -26,7 +27,7 @@ def create_app(config_dir=None, worker_ports=(8080, 8081)):
     app = web.Application(middlewares=[local_only], client_max_size=8192)
 
     async def page(request):
-        return web.FileResponse(HERE / 'frontend-example' / 'index.html')
+        return web.json_response({'service': 'compute-bridge', 'frontend': 'http://localhost:5173'})
 
     async def client(request):
         return web.FileResponse(HERE / 'web' / 'gaze-client.js')
@@ -42,11 +43,15 @@ def create_app(config_dir=None, worker_ports=(8080, 8081)):
         return web.json_response({'players': players})
 
     session_key = web.AppKey('compute-session', ClientSession)
+    upstreams = set()
 
     async def lifecycle(app):
         async with ClientSession(timeout=ClientTimeout(total=5)) as session:
             app[session_key] = session
-            yield
+            try:
+                yield
+            finally:
+                await asyncio.gather(*(ws.close() for ws in list(upstreams)), return_exceptions=True)
 
     async def compute(request):
         # Fixed local destinations and a narrow API; never proxy config/tokens.
@@ -67,12 +72,48 @@ def create_app(config_dir=None, worker_ports=(8080, 8081)):
         except (ClientError, TimeoutError):
             raise web.HTTPServiceUnavailable(text=f'{user}P compute server 연결을 확인하세요')
 
+    async def gaze(request):
+        user = request.query.get('user_id', '1')
+        if user not in ('1', '2'):
+            raise web.HTTPBadRequest(text='user_id는 1 또는 2입니다')
+        port = worker_ports[int(user) - 1]
+        target = f'http://127.0.0.1:{port}'
+        filename = 'mac-config.json' if user == '1' else 'mac-user2-config.json'
+        path = config_dir / filename
+        config = load_config(path, {}) if path.exists() else {}
+        try:
+            upstream = await app[session_key].ws_connect(target + '/gaze',
+                params={'token': config.get('gaze_token', '')}, headers={'Origin': target}, heartbeat=10)
+        except (ClientError, TimeoutError):
+            raise web.HTTPServiceUnavailable(text=f'{user}P compute server 연결을 확인하세요')
+        upstreams.add(upstream)
+        ws = web.WebSocketResponse(heartbeat=10)
+        await ws.prepare(request)
+
+        async def publish():
+            try:
+                async for msg in upstream:
+                    if msg.type == WSMsgType.TEXT:
+                        await ws.send_str(msg.data)
+            finally:
+                await ws.close()
+
+        task = asyncio.create_task(publish())
+        try:
+            async for _ in ws:
+                pass
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            await upstream.close()
+            upstreams.discard(upstream)
+        return ws
+
     app.cleanup_ctx.append(lifecycle)
-    app.add_routes([web.get('/', page), web.get('/gaze-client.js', client), web.get('/connection.json', connections),
+    app.add_routes([web.get('/', page), web.get('/gaze', gaze), web.get('/gaze-client.js', client), web.get('/connection.json', connections),
                     web.get('/api/players/{user}/{resource}', compute), web.post('/api/players/{user}/{resource}', compute)])
-    app.router.add_static('/assets/', HERE / 'frontend-example')
     return app
 
 
 if __name__ == '__main__':
-    web.run_app(create_app(), host='127.0.0.1', port=5173, print=None, access_log=None)
+    web.run_app(create_app(), host='127.0.0.1', port=int(os.environ.get('EYE_BRIDGE_PORT', '5174')), print=None, access_log=None)

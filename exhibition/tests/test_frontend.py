@@ -18,12 +18,21 @@ NODE = os.environ.get('EYE_NODE') or shutil.which('node')
 
 
 class FrontendFlowCheck(unittest.TestCase):
+    @unittest.skipUnless(NODE, 'Node required for integration checks')
+    def test_next_proxy_and_coordinate_contract(self):
+        root = Path(__file__).resolve().parents[1]
+        if not (root / 'frontend-example' / 'node_modules' / 'ws').exists():
+            self.skipTest('Install the exhibition frontend dependencies first')
+        result = subprocess.run([NODE, str(root / 'tests' / 'test_compute_proxy.mjs')],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     @unittest.skipUnless(NODE, 'Node required for frontend flow checks')
     def test_cursor_calibration_retry_and_cancel(self):
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as temporary:
             module = Path(temporary) / 'flow.mjs'
-            module.write_text((root / 'frontend-example' / 'flow.js').read_text())
+            module.write_text((root.parent / 'legacy' / 'frontend-example' / 'flow.js').read_text())
             result = subprocess.run([NODE, str(root / 'tests' / 'test_frontend_flow.mjs'), str(module)],
                                     capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -68,6 +77,21 @@ class FrontendProxyCheck(unittest.IsolatedAsyncioTestCase):
         preview = await self.front.get('/api/players/1/preview?overlay=1')
         self.assertEqual(preview.status, 200)
         self.assertEqual(cv2.imdecode(np.frombuffer(await preview.read(), np.uint8), cv2.IMREAD_COLOR).shape[:2], (480, 640))
+
+    async def test_same_origin_gaze_routes_players_without_upload_token(self):
+        for user in (1, 2):
+            # Enforce the worker's gaze token; the bridge reads it privately.
+            worker = self.workers[user - 1]
+            worker.app[RUNTIME_KEY].config['require_gaze_token'] = True
+            from exhibition.common import save_config
+            save_config(self.root / ('mac-config.json' if user == 1 else 'mac-user2-config.json'), worker.app[RUNTIME_KEY].config)
+            ws = await self.front.ws_connect(f'/gaze?user_id={user}', headers={'Origin': self.origin})
+            packet = await ws.receive_json(timeout=2)
+            self.assertEqual(packet['user_id'], user)
+            self.assertEqual(packet['type'], 'gaze')
+            self.assertNotIn('token', packet)
+            await ws.close()
+        self.assertEqual((await self.front.get('/gaze?user_id=3')).status, 400)
 
     async def test_frontend_nine_points_three_validation_points_and_viewport(self):
         await self.post('demo', {'x': .5, 'y': .5})

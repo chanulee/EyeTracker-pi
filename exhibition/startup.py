@@ -74,7 +74,7 @@ def lan_address():
 
 
 def announce():
-    deadline = time.monotonic() + 15
+    deadline = time.monotonic() + 120
     states = []
     ready = False
     while time.monotonic() < deadline:
@@ -110,7 +110,7 @@ def announce():
     print('Pi 영상 전송 토큰 / 작품 시선 구독 토큰 / 보정 / 연결 상태는 관리자에서 확인하세요.')
     print('\n작품 프론트엔드:', frontend or '주소 미등록 (별도 개발·실행 필요)')
     if server_settings().get('example_frontend', False):
-        print('예시 작품 실행 중 · 교체할 화면: exhibition/frontend-example/index.html')
+        print('전시 작품 실행 중 · 작품 코드: exhibition/frontend-example/ · 연결 모듈: exhibition/frontend-integration/')
     print('1P 시선 구독: ws://localhost:8080/gaze')
     print('2P 시선 구독: ws://localhost:8081/gaze')
     print('두 커서 확인 화면: http://localhost:8080/stage (연결 확인용)')

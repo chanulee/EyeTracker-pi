@@ -18,7 +18,7 @@ Mac 서버를 사용자별로 따로 실행하므로 눈 모델, 보정값, 필�
 
 전시 운영자는 **[통합 관리자](http://localhost:8080/admin)**에서 두 사용자의 눈 영상, 동공 추출, 모델 준비, 보정 여부, Pi 연결, 처리 FPS/시간과 시선 구독 수를 함께 확인합니다. Mac mini는 하나의 compute server 역할을 하며, 내부적으로 독립된 1P/2P 처리 프로세스를 실행합니다. 별도 개발하는 작품 프론트엔드는 두 좌표 스트림을 받아 **같은 화면 전체에 두 커서**를 표시합니다. 사용자 번호가 화면의 왼쪽/오른쪽 영역을 뜻하지 않습니다.
 
-**[예시 작품 프론트엔드](http://localhost:5173)**는 compute server와 별도 프로세스로 함께 실행됩니다. 화면은 `exhibition/frontend-example/index.html`에 있으며 이 파일을 교체하거나 `--frontend-url`로 다른 작품 서버를 지정합니다. 관리자 링크도 시작 후 기본 브라우저에서 자동으로 열립니다. **[두 커서 확인 화면](http://localhost:8080/stage)**은 하늘색 1P, 주황색 2P가 하나의 화면을 사용하는 연결 확인용 페이지입니다. 최종 작품을 대신하지 않습니다. 예시 작품에서는 라이브 눈 영상과 보정 전 임시 커서를 확인하고 1P·2P 순서로 보정합니다. 같은 화면에서 착용 확인 → 방향 모델 준비 → 정면 안내 → 9점 보정 → 별도의 3점 검증 → 부드러운 시선 커서로 이어집니다. 기존 8080/8081 보정 화면도 유지합니다.
+전시 작품은 `exhibition/frontend-example/`의 Next.js 서버이며 `http://localhost:5173`에서 실행합니다. Mac 연결 코드는 `exhibition/frontend-integration/`에서 관리합니다. 작품 서버의 HTTP/WebSocket 연결 지점과 `EntryFlowContext.jsx`의 엔진 연결만 유지하면 작품 화면은 별도로 수정할 수 있습니다. 같은 작품 주소의 `/gaze?user_id=1`과 `/gaze?user_id=2`가 각 Mac worker를 중계합니다. 영상·보정 API는 localhost bridge(5174)를 통해 연결하고, 시선 구독 토큰은 서버 안에서 처리합니다. [연결·업데이트 안내](exhibition/frontend-integration/README.md)를 참고하세요.
 
 ## 1. Pi 두 대 준비
 
@@ -78,7 +78,7 @@ Pi에 저장하는 Mac 주소는 Pi에서 접근 가능한 Wi-Fi IP나 hostname�
 
 ## 4. 두 관람객 보정·교체
 
-[예시 작품](http://localhost:5173)의 **착용 확인 · 보정 시작**을 1P, 2P 순서로 누릅니다. 전체 화면 진입 후 착용 확인 → 방향 모델 준비 → 정면 안내 → 9점 보정 → 3점 검증을 같은 화면에서 진행합니다. Pupil 엔진은 정면 기준도 자동 수집합니다. 지정 좌석이어도 관람객마다 보정합니다. 기존 8080/8081 운영 화면은 9점 보정과 중앙 검증을 제공합니다.
+[전시 보정 화면](http://localhost:5173/app)에서 **보정 시작**을 누릅니다. 연결된 참가자 순서대로 착용·모델 준비 → 정면 안내 → 9점 보정 → 독립 3점 검증을 진행하고 **참여 시작**을 누릅니다. 같은 화면 크기를 유지하고 관람객마다 다시 보정합니다.
 
 - 한 화면을 함께 쓰면 사용자 1, 사용자 2 순서로 보정하세요. 같은 브라우저 창의 두 탭을 사용하고, 브라우저 자체를 전체 화면으로 만든 뒤 두 보정 탭과 작품 탭을 같은 크기로 유지합니다. 각 페이지의 “전체 화면” 버튼은 별도 화면에서 사용할 때 사용하세요. 두 사람 모두 최종 작품과 같은 화면 크기·위치·자세에서 보정합니다.
 - 관람객이 1번 자리만 바뀌면 작품의 **1P 보정 시작**으로 재보정합니다. 2번도 해당 카드에서 처리합니다. 다른 관람객의 보정은 유지됩니다.
@@ -144,7 +144,7 @@ bash start-mac.sh
 
 기본 시작은 1P·2P 처리 서버와 별도 예시 작품 서버를 켭니다. 준비가 완료되면 Pi별 LAN 수신 주소, 통합 관리자, 작품 URL과 두 시선 구독 주소를 한 번에 출력합니다. 관리자 기본 브라우저 자동 열기를 끄려면 `--no-open`, 가상 입력은 `--simulate`를 추가합니다. `--two-users`도 기존 명령과 호환됩니다. Ctrl+C는 두 처리 서버와 내장 예시 작품 서버를 함께 종료합니다.
 
-예시 작품 주소는 `http://localhost:5173`입니다. 화면 파일 `exhibition/frontend-example/index.html`을 바꾸면 다른 처리 코드를 수정할 필요가 없습니다. 별도 프론트엔드 개발 서버로 교체하려면 `bash start-mac.sh --frontend-url http://localhost:5173`을 사용합니다. 이때 내장 예시는 실행하지 않고 해당 주소를 안내합니다. 별도 작품 서버는 작품 담당자가 실행합니다. 지정 주소는 로컬 `exhibition/server-config.json`에 저장됩니다. 내장 예시로 복귀할 때는 `bash start-mac.sh --frontend-url ''`를 사용합니다.
+전시 작품은 `exhibition/frontend-example/`의 Next.js 서버이며 `http://localhost:5173`에서 실행합니다. Mac 연결 코드는 `exhibition/frontend-integration/`에서 관리합니다. 작품 서버의 HTTP/WebSocket 연결 지점과 `EntryFlowContext.jsx`의 엔진 연결만 유지하면 작품 화면은 별도로 수정할 수 있습니다. 같은 작품 주소의 `/gaze?user_id=1`과 `/gaze?user_id=2`가 각 Mac worker를 중계합니다. 영상·보정 API는 localhost bridge(5174)를 통해 연결하고, 시선 구독 토큰은 서버 안에서 처리합니다. [연결·업데이트 안내](exhibition/frontend-integration/README.md)를 참고하세요.
 
 ## 토큰·Mac 주소·Pi 업데이트
 

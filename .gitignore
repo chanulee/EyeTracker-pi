@@ -7,4 +7,7 @@ gaze_vector.txt
 exhibition/*-config.json
 exhibition/*-config.tmp
 exhibition/.runtime/
+exhibition/frontend-example/node_modules/
+exhibition/frontend-example/.next/
+exhibition/frontend-example/public/mediapipe/
 .DS_Store

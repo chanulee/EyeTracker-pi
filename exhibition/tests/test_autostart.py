@@ -58,6 +58,7 @@ class AutostartCheck(unittest.TestCase):
             (source/'exhibition').mkdir(parents=True)
             (source/'.venv-pupil'/'bin').mkdir(parents=True)
             (source/'.venv-pupil'/'bin'/'python').touch()
+            (source/'.venv-pupil'/'bin'/'python3').symlink_to('python')
             for name in ('start-mac.sh','start-pupil.sh'):(source/name).touch()
             (source/'exhibition'/'mac.py').write_text('version1')
             config=source/'exhibition'/'mac-config.json';config.write_text('original-token')

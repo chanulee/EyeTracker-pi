@@ -17,6 +17,8 @@ def agent_spec(root, engine, state_dir=None):
     environment = {'PYTHONUNBUFFERED': '1', 'EYE_OPEN_FRONTEND': '1'}
     if state_dir is not None:
         environment['EYE_STATE_DIR'] = str(Path(state_dir).resolve())
+    if (root / '.node' / 'bin' / 'node').exists():
+        environment['EYE_NODE'] = str(root / '.node' / 'bin' / 'node')
     return dict(Label=LABEL,
                 ProgramArguments=['/usr/bin/caffeinate', '-di', '/bin/bash', str(root / launcher), '--no-open'],
                 WorkingDirectory=str(root), RunAtLoad=True, KeepAlive=True, ThrottleInterval=10,
@@ -33,7 +35,7 @@ def deploy(source, destination, engine):
     state = destination / 'state'
     app.mkdir(parents=True, exist_ok=True, mode=0o700)
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
-    ignore = shutil.ignore_patterns('*-config.json', '*-config.tmp', '__pycache__', '.runtime', 'tests')
+    ignore = shutil.ignore_patterns('*-config.json', '*-config.tmp', '__pycache__', '.runtime', 'tests', '.next')
     shutil.copytree(source / 'exhibition', app / 'exhibition', dirs_exist_ok=True, ignore=ignore)
     for name in ('start-mac.sh', 'start-pupil.sh'):
         shutil.copy2(source / name, app / name)
@@ -44,8 +46,21 @@ def deploy(source, destination, engine):
             shutil.copy2(original, saved)
             saved.chmod(0o600)
     environment = '.venv-pupil' if engine == 'pupil' else '.venv'
+    # copytree(dirs_exist_ok=True, symlinks=True) cannot overwrite old symlinks.
+    # Keep files/settings, replacing only matching virtualenv links before update.
+    for original in (source / environment).rglob('*'):
+        if original.is_symlink():
+            saved = app / environment / original.relative_to(source / environment)
+            if saved.is_symlink():
+                saved.unlink()
     shutil.copytree(source / environment, app / environment, symlinks=True, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns('native', 'include', '__pycache__'))
+    binary = app / '.node' / 'bin' / 'node'
+    node = os.environ.get('EYE_NODE') or shutil.which('node') or (str(binary) if binary.exists() else None)
+    if node:
+        binary.parent.mkdir(parents=True, exist_ok=True)
+        if Path(node).resolve() != binary.resolve():
+            shutil.copy2(Path(node).resolve(), binary)
     return app, state
 
 
@@ -91,6 +106,12 @@ def manage(action, engine='pupil', root=ROOT):
             raise RuntimeError(f'실행 환경이 없습니다: {python}')
         imports = 'import aiohttp,cv2,numpy' + ('; import pye3d' if engine == 'pupil' else '')
         subprocess.run([str(python), '-c', imports], check=True, capture_output=True)
+        if (root / 'exhibition' / 'frontend-example' / 'package.json').exists():
+            node = os.environ.get('EYE_NODE') or shutil.which('node') or str(destination / 'app' / '.node' / 'bin' / 'node')
+            if not Path(node).is_file():
+                raise RuntimeError('Node.js 실행 파일을 EYE_NODE로 지정하세요.')
+            if not (root / 'exhibition' / 'frontend-example' / 'node_modules' / 'next').exists():
+                raise RuntimeError('exhibition/frontend-example에서 npm install로 작품 의존성을 먼저 설치하세요.')
         if state.returncode == 0:
             launchctl('bootout', service)
         app, state_dir = deploy(root, destination, engine)

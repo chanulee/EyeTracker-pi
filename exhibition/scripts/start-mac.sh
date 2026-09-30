@@ -47,21 +47,32 @@ user1_pid=$!
 "$python_bin" -m exhibition.mac --worker --user-id 2 --port 8081 --config "$state_dir/mac-user2-config.json" "$@" &
 user2_pid=$!
 frontend_pid=
+bridge_pid=
 cleanup() {
   kill "$user1_pid" "$user2_pid" 2>/dev/null || true
   if [ -n "$frontend_pid" ]; then kill "$frontend_pid" 2>/dev/null || true; fi
+  if [ -n "$bridge_pid" ]; then kill "$bridge_pid" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 if "$python_bin" -c 'from exhibition.startup import server_settings; import sys; sys.exit(0 if server_settings().get("example_frontend", False) else 1)'; then
+  node_bin="${EYE_NODE:-$(command -v node || true)}"
+  if [ -z "$node_bin" ] && [ -x "$repo_dir/.node/bin/node" ]; then node_bin="$repo_dir/.node/bin/node"; fi
+  if [ -z "$node_bin" ] && [ -x "$HOME/Library/Application Support/EyeTracker-pi/app/.node/bin/node" ]; then
+    node_bin="$HOME/Library/Application Support/EyeTracker-pi/app/.node/bin/node"
+  fi
+  if [ ! -x "$node_bin" ]; then echo 'Node.js 실행 경로를 EYE_NODE로 지정하세요.' >&2; exit 1; fi
   "$python_bin" -m exhibition.frontend &
+  bridge_pid=$!
+  (cd exhibition/frontend-example && PORT=5173 "$node_bin" server.js) &
   frontend_pid=$!
 fi
 "$python_bin" -c 'from exhibition.startup import announce; announce()'
 # A failed worker stops the pair so the terminal cannot claim the server is healthy.
 while kill -0 "$user1_pid" 2>/dev/null && kill -0 "$user2_pid" 2>/dev/null; do
   if [ -n "$frontend_pid" ] && ! kill -0 "$frontend_pid" 2>/dev/null; then break; fi
+  if [ -n "$bridge_pid" ] && ! kill -0 "$bridge_pid" 2>/dev/null; then break; fi
   sleep 1
 done
 echo '처리 서버가 종료되어 compute server 전체를 종료합니다.' >&2

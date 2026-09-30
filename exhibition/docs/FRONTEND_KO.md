@@ -73,7 +73,7 @@ const disconnect = connectGaze('ws://localhost:8080/gaze', gaze => {
 
 ## 운영 API (Mac localhost 전용)
 
-외부 프론트엔드는 `/gaze`로 좌표를 받습니다. 내장 예시 작품은 localhost 중계 API로 영상과 보정도 제공합니다. 외부 작품 서버에서 이 흐름을 재사용하려면 고정된 localhost 중계를 별도로 구현하거나 기존 Mac 운영 화면에서 보정하세요. LAN 클라이언트에는 설정 토큰/눈 영상/API를 공개하지 않습니다. POST는 운영 화면과 같은 Origin을 요구합니다.
+외부 프론트엔드는 Mac worker의 `/gaze`로 좌표를 받습니다. 현재 전시 프론트엔드는 같은 주소의 `/gaze?user_id=1|2`로 구독하며 localhost bridge를 통해 영상·보정도 사용합니다. 브라우저에는 토큰 설정이 필요 없습니다. [전시 연결 계약](../frontend-integration/README.md)을 참고하세요. LAN 클라이언트에는 눈 영상·보정·설정 API를 공개하지 않습니다.
 
 | 경로 | 기능 |
 |---|---|
@@ -130,7 +130,7 @@ const stops = [1, 2].map(id => connectGaze(
 
 ## 교체 가능한 별도 예시 프론트엔드
 
-기본 실행은 별도 HTTP 프로세스의 `http://localhost:5173`에 예시 작품을 제공합니다. 작품 파일은 `exhibition/frontend-example/index.html`이며 두 사용자의 `/gaze`를 동시에 구독합니다. [예시 교체 안내](../frontend-example/README.md)를 참고하세요. 이 프론트엔드는 관리자나 compute API에 작품 코드를 넣지 않습니다. 화면 파일만 교체하거나 `--frontend-url URL`로 자신의 프론트엔드 서버로 바꿀 수 있습니다. 내장 예시의 localhost `/connection.json`은 시선 구독 토큰만 제공하고 Pi 영상 전송 토큰은 제공하지 않습니다.
+전시 작품은 `exhibition/frontend-example/`의 Next.js 서버이며 `http://localhost:5173`에서 실행합니다. Mac 연결 코드는 `exhibition/frontend-integration/`에서 관리합니다. 작품 서버의 HTTP/WebSocket 연결 지점과 `EntryFlowContext.jsx`의 엔진 연결만 유지하면 작품 화면은 별도로 수정할 수 있습니다. 같은 작품 주소의 `/gaze?user_id=1`과 `/gaze?user_id=2`가 각 Mac worker를 중계합니다. 영상·보정 API는 localhost bridge(5174)를 통해 연결하고, 시선 구독 토큰은 서버 안에서 처리합니다. [연결·업데이트 안내](../frontend-integration/README.md)를 참고하세요.
 
 `GET /api/exhibition`은 Mac localhost 관리자용이며 `lan_address`와 사용자별 `players[].receiver_url`도 반환합니다. 자동 주소 감지가 실패하면 해당 값은 null입니다. 작품은 기존 `/gaze` 계약을 사용합니다.
 
