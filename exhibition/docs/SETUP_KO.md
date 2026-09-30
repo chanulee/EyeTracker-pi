@@ -150,7 +150,7 @@ Mac 중지는 Ctrl+C. Pi 자동실행 중지는 `sudo systemctl disable --now ey
 
 ## 개발 검증 기록 (2026-09-30)
 
-현재 전시용 Mac 환경 Python 3.12.14 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 총 13개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
+현재 전시용 Mac 환경 Python 3.12.14 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 총 16개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
 
 ```bash
 .venv/bin/python -m unittest discover -s exhibition/tests -v
@@ -177,3 +177,9 @@ Pi OS 패키지 설치와 systemd 부팅은 이 Mac에서 실행하지 않았습
 각 Pi에는 해당 사용자 카드의 **Pi 영상 전송 토큰**을 저장합니다. 별도 작품에는 **작품 시선 구독 토큰**을 전달합니다. “작품 구독에 토큰 요구”를 사용할 때는 학생에게 새 공통 클라이언트와 토큰 전달 예제를 함께 전달하세요. 관리자에서 작품 Origin을 두 사용자 모두에 저장합니다. 이 관리자와 확인 페이지는 Mac localhost 전용입니다. Mac의 OS Wi-Fi 설정, 절전 해제, 로그인 시 서버 자동 실행은 현재 자동화하지 않습니다. 전시 중에는 Mac이 잠자기에 들어가지 않도록 설정하고 서버 터미널을 유지하세요.
 
 통합 관리자 추가 검사에서는 관리 페이지의 localhost 보호, 고정된 2P 서버 중계, 1P 초기화와 2P 초기화의 분리, 서버 연결 실패 표시를 검증합니다. 구독 토큰 검사는 영상 전송 토큰으로 작품 구독이 불가능한지, 시선 구독 토큰이 필요한 설정에서 인증이 적용되는지, 인증 설정 변경 시 기존 구독이 종료되는지 확인합니다. 폴더 정리 이후에도 `exhibition/tracking/`의 실제 알고리즘과 `exhibition/assets/eye_test.mp4`로 동일한 회귀 검사를 실행합니다.
+
+## 3단계 시작 안내와 예시 작품
+
+`bash start-mac.sh`는 1P·2P compute worker와 `http://localhost:5173` 예시 작품 서버를 함께 시작합니다. 터미널에는 Pi SW → Mac mini compute server → 작품 프론트엔드 구조, 각 Pi의 실제 LAN 수신 주소와 연결 상태, 통합 관리자 URL, 작품 URL과 구독 주소가 표시됩니다. OpenGL은 전시의 GUI 없는 추론 경로에서 불러오지 않습니다. 준비가 끝나면 기본 브라우저로 관리자를 엽니다. 자동 열기를 끄려면 `--no-open`을 추가합니다.
+
+예시 작품은 `exhibition/frontend-example/index.html`만 교체하면 됩니다. 다른 작품 서버를 사용하려면 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh --frontend-url http://localhost:5173`처럼 실행합니다. 이때 내장 예시는 시작하지 않으므로 작품 개발 서버를 별도로 실행하세요. 지정 주소는 `exhibition/server-config.json`에 저장됩니다. `--frontend-url ''`는 내장 예시로 복귀합니다. 내장 예시 Origin은 자동 등록하며 외부 작품 Origin은 두 사용자 관리자 카드에 등록하세요. 단일 사용자 개발은 `bash start-mac.sh --single-user`입니다.

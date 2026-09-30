@@ -11,6 +11,11 @@ import unittest
 
 class InstallCheck(unittest.TestCase):
     def test_two_user_launcher_starts_and_stops_both_processes(self):
+        for flags in ([], ['--two-users'], ['--two-users', '--simulate']):
+            with self.subTest(flags=flags):
+                self.check_launcher(flags)
+
+    def check_launcher(self, flags):
         launcher = Path(__file__).resolve().parents[1] / 'scripts' / 'start-mac.sh'
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -28,17 +33,20 @@ time.sleep(60)
 """)
             executable.chmod(0o755)
             log = root / 'launch.jsonl'
-            process = subprocess.Popen(['bash', str(copy), '--two-users', '--simulate'],
+            process = subprocess.Popen(['/bin/bash', str(copy), *flags],
                                        env=dict(os.environ, EYE_LAUNCH_LOG=str(log)),
                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
                 deadline = time.monotonic() + 5
                 launches = []
-                while len(launches) < 2:
-                    self.assertIsNone(process.poll(), 'launcher exited before starting both users')
+                while len(launches) < 3:
+                    self.assertIsNone(process.poll(), 'launcher exited before starting the compute workers and example frontend')
                     self.assertLess(time.monotonic(), deadline)
                     if log.exists(): launches = [json.loads(line) for line in log.read_text().splitlines()]
                     time.sleep(.03)
+                frontends = [item for item in launches if 'exhibition.frontend' in item['args']]
+                self.assertEqual(len(frontends), 1)
+                launches = [item for item in launches if '--user-id' in item['args']]
                 launches.sort(key=lambda item: item['args'][item['args'].index('--user-id') + 1])
                 for launch, user, port, config in zip(launches, ('1', '2'), ('8080', '8081'),
                                                       ('exhibition/mac-config.json', 'exhibition/mac-user2-config.json')):
@@ -46,11 +54,11 @@ time.sleep(60)
                     self.assertEqual(args[args.index('--user-id') + 1], user)
                     self.assertEqual(args[args.index('--port') + 1], port)
                     self.assertEqual(args[args.index('--config') + 1], config)
-                    self.assertIn('--simulate', args)
+                    self.assertEqual('--simulate' in args, '--simulate' in flags)
             finally:
                 process.send_signal(signal.SIGTERM)
                 process.communicate(timeout=5)
-            for launch in launches:
+            for launch in [*launches, *frontends]:
                 with self.assertRaises(ProcessLookupError): os.kill(launch['pid'], 0)
 
     def test_bootstrap_preserves_existing_files(self):

@@ -1,6 +1,6 @@
 # 전시용 Eye Cursor — 사용자 2명 / Pi 2대 / Mac mini 1대
 
-현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash start-mac.sh --two-users`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](exhibition/docs/MAC_MINI_KO.md)에 있습니다.
+현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash start-mac.sh`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](exhibition/docs/MAC_MINI_KO.md)에 있습니다.
 
 저장소는 **`exhibition/` — 현재 전시에 필요한 모든 것**, **`legacy/` — 현재 전시에서 사용하지 않는 원본 실험과 이전 데모**로 나뉩니다. 루트 `start-mac.sh`는 Mac 실행 진입점입니다. [문서 목록](exhibition/docs/README.md)과 [폴더 이동표](exhibition/docs/REPOSITORY_KO.md)를 참고하세요.
 
@@ -16,7 +16,7 @@ Mac 서버를 사용자별로 따로 실행하므로 눈 모델, 보정값, 필�
 
 전시 운영자는 **[통합 관리자](http://localhost:8080/admin)**에서 두 사용자의 눈 영상, 동공 추출, 모델 준비, 보정 여부, Pi 연결, 처리 FPS/시간과 시선 구독 수를 함께 확인합니다. Mac mini는 하나의 compute server 역할을 하며, 내부적으로 독립된 1P/2P 처리 프로세스를 실행합니다. 별도 개발하는 작품 프론트엔드는 두 좌표 스트림을 받아 **같은 화면 전체에 두 커서**를 표시합니다. 사용자 번호가 화면의 왼쪽/오른쪽 영역을 뜻하지 않습니다.
 
-**[두 커서 확인 화면](http://localhost:8080/stage)**은 하늘색 1P, 주황색 2P가 하나의 화면을 사용하는 연결 확인용 페이지입니다. 최종 작품을 대신하지 않습니다. 두 사용자의 보정은 기존 8080/8081 운영 화면에서 차례로 진행합니다.
+**[예시 작품 프론트엔드](http://localhost:5173)**는 compute server와 별도 프로세스로 함께 실행됩니다. 화면은 `exhibition/frontend-example/index.html`에 있으며 이 파일을 교체하거나 `--frontend-url`로 다른 작품 서버를 지정합니다. 관리자 링크도 시작 후 기본 브라우저에서 자동으로 열립니다. **[두 커서 확인 화면](http://localhost:8080/stage)**은 하늘색 1P, 주황색 2P가 하나의 화면을 사용하는 연결 확인용 페이지입니다. 최종 작품을 대신하지 않습니다. 두 사용자의 보정은 기존 8080/8081 운영 화면에서 차례로 진행합니다.
 
 ## 1. Pi 두 대 준비
 
@@ -124,11 +124,22 @@ const stops = [1, 2].map(userId => connectGaze(
 
 전시 코드, 알고리즘, 예전 실험을 폴더별로 정리했습니다. [기존 학생 MJPEG/Windows 데모](legacy/docs/LEGACY_PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대·GC0308 두 대·전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 시작값은 각 Pi 320×240 / 20 FPS / JPEG 품질 65이고, 무선 혼잡이나 Mac 부하가 크면 각 Pi 설정에서 FPS·품질을 낮춰 확인하세요.
 
-단일 사용자 개발·기존 사용법도 유지합니다.
+단일 사용자 개발은 명시적으로 `--single-user`를 사용합니다.
 
 ```bash
-bash start-mac.sh
-bash start-mac.sh --simulate
+bash start-mac.sh --single-user
+bash start-mac.sh --single-user --simulate
 ```
 
 원본 프로젝트 소개와 크레딧은 [원본 안내](legacy/docs/UPSTREAM.md)에 보존했습니다.
+
+## Compute server 시작과 작품 교체
+
+```bash
+cd ~/Documents/GitHub/EyeTracker-pi
+bash start-mac.sh
+```
+
+기본 시작은 1P·2P 처리 서버와 별도 예시 작품 서버를 켭니다. 준비가 완료되면 Pi별 LAN 수신 주소, 통합 관리자, 작품 URL과 두 시선 구독 주소를 한 번에 출력합니다. 관리자 기본 브라우저 자동 열기를 끄려면 `--no-open`, 가상 입력은 `--simulate`를 추가합니다. `--two-users`도 기존 명령과 호환됩니다. Ctrl+C는 두 처리 서버와 내장 예시 작품 서버를 함께 종료합니다.
+
+예시 작품 주소는 `http://localhost:5173`입니다. 화면 파일 `exhibition/frontend-example/index.html`을 바꾸면 다른 처리 코드를 수정할 필요가 없습니다. 별도 프론트엔드 개발 서버로 교체하려면 `bash start-mac.sh --frontend-url http://localhost:5173`을 사용합니다. 이때 내장 예시는 실행하지 않고 해당 주소를 안내합니다. 별도 작품 서버는 작품 담당자가 실행합니다. 지정 주소는 로컬 `exhibition/server-config.json`에 저장됩니다. 내장 예시로 복귀할 때는 `bash start-mac.sh --frontend-url ''`를 사용합니다.

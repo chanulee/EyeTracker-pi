@@ -15,6 +15,8 @@ EyeTracker-pi/
 │   ├── gaze.py / common.py           보정·안정화·설정 저장
 │   ├── requirements.txt             Mac 실행 라이브러리
 │   ├── tracking/                    현재 쓰는 단안 눈 추출 알고리즘
+│   ├── frontend-example/            별도 5173 예시 작품 (index.html 교체)
+│   ├── frontend.py / startup.py      작품 서버·3단계 시작 안내
 │   ├── web/                         관리자·보정·Pi 설정·두 커서 확인·구독 클라이언트
 │   ├── scripts/                     Mac 시작 구현·Pi 설치
 │   ├── docs/                        현재 전시의 운영·프론트엔드 문서

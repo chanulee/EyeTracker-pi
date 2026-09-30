@@ -30,3 +30,9 @@ Mac 서버는 부팅할 때 자동으로 켜지지 않습니다. 전시 시작 �
 ## 다음 현장 준비
 
 Mac과 Pi를 서로 통신할 수 있는 같은 LAN에 연결합니다. Pi Zero 2 W의 Wi-Fi는 2.4 GHz를 사용합니다. Mac의 LAN 주소를 예약하고 두 Pi 설정에 각각 `ws://Mac의LAN주소:8080/camera`, `ws://Mac의LAN주소:8081/camera`와 해당 사용자 Pi 토큰을 저장합니다. Mac 방화벽 수신 허용과 실제 눈 영상을 확인한 뒤 관람객마다 보정합니다. 작품 Origin과 시선 구독 토큰을 별도 프론트엔드에 연결합니다. 자세한 순서는 [운영 매뉴얼](SETUP_KO.md)에 있습니다.
+
+## 3단계 시작 안내와 예시 작품
+
+`bash start-mac.sh`는 1P·2P compute worker와 `http://localhost:5173` 예시 작품 서버를 함께 시작합니다. 터미널에는 Pi SW → Mac mini compute server → 작품 프론트엔드 구조, 각 Pi의 실제 LAN 수신 주소와 연결 상태, 통합 관리자 URL, 작품 URL과 구독 주소가 표시됩니다. OpenGL은 전시의 GUI 없는 추론 경로에서 불러오지 않습니다. 준비가 끝나면 기본 브라우저로 관리자를 엽니다. 자동 열기를 끄려면 `--no-open`을 추가합니다.
+
+예시 작품은 `exhibition/frontend-example/index.html`만 교체하면 됩니다. 다른 작품 서버를 사용하려면 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh --frontend-url http://localhost:5173`처럼 실행합니다. 이때 내장 예시는 시작하지 않으므로 작품 개발 서버를 별도로 실행하세요. 지정 주소는 `exhibition/server-config.json`에 저장됩니다. `--frontend-url ''`는 내장 예시로 복귀합니다. 내장 예시 Origin은 자동 등록하며 외부 작품 Origin은 두 사용자 관리자 카드에 등록하세요. 단일 사용자 개발은 `bash start-mac.sh --single-user`입니다.

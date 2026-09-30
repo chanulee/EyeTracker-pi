@@ -4,10 +4,15 @@
 <style>
 *{box-sizing:border-box}body{margin:0;background:#101720;color:#edf3fa;font:16px system-ui}header,main{max-width:1280px;margin:auto;padding:24px}header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}h1{font-size:26px;margin:0}h2{margin:0}a{color:#9fd0ff}button,input,textarea{font:inherit}button,.link{background:#253b50;color:#fff;border:1px solid #54718a;border-radius:8px;padding:10px 14px;cursor:pointer}main{padding-top:0}.flow{color:#b5c7d8;margin-bottom:24px}.players{display:grid;grid-template-columns:1fr 1fr;gap:24px}.player{border:1px solid #34485e;border-radius:16px;padding:24px;background:#192432}.heading{display:flex;justify-content:space-between;align-items:center}.badge{color:#ffce87}.preview{width:100%;aspect-ratio:4/3;object-fit:contain;background:#0b1118;border-radius:10px;margin:20px 0}dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 20px}dt{color:#aac0d4}dd{margin:0;text-align:right}label{display:block;margin:16px 0}input:not([type=checkbox]),textarea{width:100%;padding:10px;border:1px solid #4c6580;border-radius:6px;background:#0f1924;color:#fff}textarea{min-height:90px}code{overflow-wrap:anywhere;color:#bcd9ee}.actions{display:flex;flex-wrap:wrap;gap:10px}.message{min-height:24px;color:#ffce87}small{color:#aac0d4}details{margin-top:20px}summary{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #ffce87}@media(max-width:800px){.players{grid-template-columns:1fr}}
 </style>
-<header><div><h1>전시 관리자</h1><p>Mac mini compute server · 1P / 2P</p></div><a class="link" href="/stage" target="_blank" rel="noopener">두 커서 확인 화면 열기 ↗</a></header>
+<header><div><h1>전시 관리자</h1><p>Mac mini compute server · 1P / 2P</p></div><a class="link" id="artwork" href="http://localhost:5173" target="_blank" rel="noopener">작품 프론트엔드 열기 ↗</a><a class="link" href="/stage" target="_blank" rel="noopener">두 커서 확인 화면 열기 ↗</a></header>
 <main><p class="flow">Pi 눈 카메라 → Mac 동공·시선 추출 / 개인별 보정 → 별도 작품 프론트엔드</p><p>보정은 작품과 같은 디스플레이에서 1P, 2P 순서로 진행하세요. 보정 화면을 연 뒤 같은 창 크기를 유지하세요.</p><div class="players" id="players"></div><p><small>연결 상태는 Pi→Mac의 영상 수신과 프론트엔드 구독 상태입니다. FPS와 처리 시간은 Mac에서 측정하며 Wi-Fi 신호 세기나 전체 촬영 지연을 뜻하지 않습니다.</small></p></main>
 <script type="module">
 const root=document.getElementById('players');
+fetch('/api/exhibition').then(r=>{if(!r.ok)throw Error();return r.json();}).then(info=>{
+ const link=document.getElementById('artwork');
+ if(info.frontend_url){link.href=info.frontend_url;link.textContent=info.example_frontend?'예시 작품 열기 ↗':'작품 프론트엔드 열기 ↗';}
+ else{link.hidden=true;}
+}).catch(()=>document.getElementById('artwork').hidden=true);
 async function api(id,resource,data){
  const path=id===1?resource==='preview'?'/preview.jpg':`/api/${resource}`:`/api/player2/${resource}`;
  const response=await fetch(path,data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});

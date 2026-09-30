@@ -3,12 +3,13 @@ import random
 import math
 import numpy as np
 
-try:
-    import gl_sphere
-    GL_SPHERE_AVAILABLE = True
-except ImportError:
-    GL_SPHERE_AVAILABLE = False
-    print("gl_sphere module not found. OpenGL rendering will be disabled.")
+GL_SPHERE_AVAILABLE = False
+if not globals().get("HEADLESS", False):
+    try:
+        import gl_sphere
+        GL_SPHERE_AVAILABLE = True
+    except ImportError:
+        print("gl_sphere module not found. OpenGL rendering will be disabled.")
 
 DISPLAY_ENABLED = True  # Set False for the headless Mac server.
 WRITE_GAZE_FILE = True  # Legacy Unity output; disabled by the Mac server.

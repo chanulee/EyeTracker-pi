@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EyeTracker · 교체 가능한 예시 작품</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101720;color:#eef4fc;font:16px system-ui;min-height:100vh}header{padding:24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}h1{font-size:22px}button,a{color:inherit}button{font:inherit;background:#253b50;border:1px solid #66829e;border-radius:8px;padding:10px;cursor:pointer}main{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:24px;height:65vh}.tile{display:grid;place-items:center;border:1px solid #3a526c;border-radius:20px;font-size:36px}.cursor{position:fixed;pointer-events:none;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;border:3px solid var(--color);box-shadow:0 0 24px var(--color)}.cursor span{position:absolute;left:40px;top:0;color:var(--color);font-weight:700;white-space:nowrap}#p1{--color:#6de5ff}#p2{--color:#ffbc76}footer{padding:24px;color:#a9bfd3}
+</style>
+<header><h1>두 사람의 시선 · 하나의 작품 화면</h1><span id="s1">1P 연결 중</span><span id="s2">2P 연결 중</span><button id="full">전체 화면</button><a href="http://localhost:8080/admin" target="_blank" rel="noopener">관리자 ↗</a></header>
+<main><div class="tile">함께</div><div class="tile">바라보는</div><div class="tile">하나의</div><div class="tile">화면</div></main>
+<div id="p1" class="cursor" hidden><span>1P</span></div><div id="p2" class="cursor" hidden><span>2P</span></div><footer>1P는 하늘색, 2P는 주황색이에요. 두 커서는 화면 전체를 함께 사용해요. 이 화면은 예시 작품이에요. exhibition/frontend-example/index.html을 바꾸거나 별도 작품 서버를 연결하세요.</footer>
+<script type="module">
+import {connectGaze} from '/gaze-client.js';
+const stops=[];
+try {
+ const response=await fetch('/connection.json');if(!response.ok)throw Error('구독 설정을 읽지 못했어요');
+ const {players}=await response.json();
+ for(const {user_id:id,url,token} of players){
+  const cursor=document.getElementById('p'+id),state=document.getElementById('s'+id);
+  stops.push(connectGaze(url,g=>{cursor.hidden=!g.valid;if(g.valid){cursor.style.left=g.x*innerWidth+'px';cursor.style.top=g.y*innerHeight+'px';}state.textContent=`${id}P · ${g.valid?'시선 수신 중':g.calibrated?'검출 대기':'보정 필요'}`;},status=>{if(status!=='connected')state.textContent=`${id}P · ${status==='stale'?'응답 지연':'연결 끊김'}`;},{token}));
+ }
+}catch(error){document.getElementById('s1').textContent=error.message;document.getElementById('s2').textContent=error.message;}
+document.getElementById('full').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+addEventListener('pagehide',()=>stops.forEach(stop=>stop()));
+</script></html>

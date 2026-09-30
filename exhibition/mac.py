@@ -28,6 +28,7 @@ def load_tracker():
     path = HERE / 'tracking' / 'Orlosky3DEyeTracker.py'
     spec = importlib.util.spec_from_file_location('orlosky', path)
     tracker = importlib.util.module_from_spec(spec)
+    tracker.HEADLESS = True
     spec.loader.exec_module(tracker)
     tracker.DISPLAY_ENABLED = False
     tracker.WRITE_GAZE_FILE = False
@@ -177,6 +178,11 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
     async def stage(request):
         local(request)
         return web.FileResponse(HERE / 'web' / 'stage.html')
+
+    async def exhibition_info(request):
+        local(request)
+        from .startup import server_settings
+        return web.json_response(server_settings())
 
     async def peer(request):
         # Only a fixed local worker and a small management allowlist are reachable.
@@ -422,6 +428,7 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
 
     app.cleanup_ctx.append(lifecycle)
     app.add_routes([web.get('/', page), web.get('/admin', admin), web.get('/stage', stage),
+                    web.get('/api/exhibition', exhibition_info),
                     web.get('/api/player2/{resource}', peer), web.post('/api/player2/{resource}', peer),
                     web.get('/gaze-client.js', client), web.get('/api/config', settings),
                     web.post('/api/config', update), web.get('/api/status', status), web.get('/preview.jpg', preview),
@@ -437,10 +444,13 @@ def main():
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--simulate', action='store_true', help='마우스 입력으로 API/보정 테스트 (실제 시선 아님)')
+    parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
-    print(f'사용자 {args.user_id} Mac 운영 화면: http://localhost:{args.port}')
-    web.run_app(create_app(args.config, args.simulate, user_id=args.user_id), host=args.host, port=args.port, access_log=None)
+    if not args.worker:
+        print(f'사용자 {args.user_id} Mac 운영 화면: http://localhost:{args.port}')
+    web.run_app(create_app(args.config, args.simulate, user_id=args.user_id), host=args.host, port=args.port,
+                access_log=None, print=None if args.worker else print)
 
 
 if __name__ == '__main__':

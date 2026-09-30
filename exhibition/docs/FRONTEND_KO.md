@@ -125,3 +125,7 @@ const stops = [1, 2].map(id => connectGaze(
 두 커서에 `position:fixed; pointer-events:none; transform:translate(-50%,-50%)`를 적용하고 색/1P·2P 라벨로 구분하세요. 시선이 끊긴 사용자의 커서만 숨기고 그 사용자의 선택 누적만 초기화합니다. 확인용 `http://localhost:8080/stage`가 같은 방식으로 두 좌표를 표시합니다. 2P 서버는 이 확인 화면의 로컬 Origin `http://localhost:8080`을 허용합니다. 별도 작품 Origin은 두 사용자 설정에 등록해야 합니다.
 
 추가 localhost 관리자 경로는 `/admin`, `/stage`, `/api/player2/status`, `/api/player2/config`, `/api/player2/preview`, `/api/player2/calibration`입니다. 1P 서버가 고정된 로컬 8081 포트의 2P 상태를 중계합니다. LAN에서는 이 관리 경로를 사용할 수 없습니다. `/api/status`는 `subscribers`, `processing_fps`, `processing_ms`, `calibrating`도 제공합니다. FPS는 최근 2초 내 최대 60개 처리 프레임의 간격으로 계산하고, 처리 시간은 JPEG 해독과 추론을 포함합니다. Wi-Fi RSSI와 촬영부터 화면 표시까지의 지연은 측정하지 않습니다. 시뮬레이션에서는 눈 영상과 실제 추론 처리 시간이 없습니다.
+
+## 교체 가능한 별도 예시 프론트엔드
+
+기본 실행은 별도 HTTP 프로세스의 `http://localhost:5173`에 예시 작품을 제공합니다. 작품 파일은 `exhibition/frontend-example/index.html`이며 두 사용자의 `/gaze`를 동시에 구독합니다. [예시 교체 안내](../frontend-example/README.md)를 참고하세요. 이 프론트엔드는 관리자나 compute API에 작품 코드를 넣지 않습니다. 화면 파일만 교체하거나 `--frontend-url URL`로 자신의 프론트엔드 서버로 바꿀 수 있습니다. 내장 예시의 localhost `/connection.json`은 시선 구독 토큰만 제공하고 Pi 영상 전송 토큰은 제공하지 않습니다.
