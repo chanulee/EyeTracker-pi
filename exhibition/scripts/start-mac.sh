@@ -2,6 +2,7 @@
 set -euo pipefail
 repo_dir="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$repo_dir"
+python_bin="${EYE_PYTHON:-.venv/bin/python}"
 # Explicit single-user mode is retained for development.
 if [ "${1:-}" = --single-user ]; then
   shift
@@ -9,14 +10,18 @@ if [ "${1:-}" = --single-user ]; then
 else
   single_user=0
 fi
-if [ ! -x .venv/bin/python ]; then
+if [ ! -x "$python_bin" ] && [ "$python_bin" != .venv/bin/python ]; then
+  echo 'Pupil 환경을 설치하세요: bash exhibition/scripts/install-pupil-mac.sh' >&2
+  exit 1
+fi
+if [ ! -x "$python_bin" ]; then
   python3 -m venv .venv
 fi
-if ! .venv/bin/python -c 'import aiohttp, cv2, numpy' 2>/dev/null; then
-  .venv/bin/python -m pip install -r exhibition/requirements.txt
+if ! "$python_bin" -c 'import aiohttp, cv2, numpy' 2>/dev/null; then
+  "$python_bin" -m pip install -r exhibition/requirements.txt
 fi
 if [ "$single_user" -eq 1 ]; then
-  exec .venv/bin/python -m exhibition.mac "$@"
+  exec "$python_bin" -m exhibition.mac "$@"
 fi
 simulate=0
 export EYE_OPEN_ADMIN=1
@@ -35,10 +40,10 @@ done
 # expand safely when empty and also preserve each worker option as one word.
 set --
 if [ "$simulate" -eq 1 ]; then set -- --simulate; fi
-.venv/bin/python -c 'from exhibition.startup import prepare; prepare()'
-.venv/bin/python -m exhibition.mac --worker --user-id 1 --port 8080 --config exhibition/mac-config.json "$@" &
+"$python_bin" -c 'from exhibition.startup import prepare; prepare()'
+"$python_bin" -m exhibition.mac --worker --user-id 1 --port 8080 --config exhibition/mac-config.json "$@" &
 user1_pid=$!
-.venv/bin/python -m exhibition.mac --worker --user-id 2 --port 8081 --config exhibition/mac-user2-config.json "$@" &
+"$python_bin" -m exhibition.mac --worker --user-id 2 --port 8081 --config exhibition/mac-user2-config.json "$@" &
 user2_pid=$!
 frontend_pid=
 cleanup() {
@@ -48,11 +53,11 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
-if .venv/bin/python -c 'from exhibition.startup import server_settings; import sys; sys.exit(0 if server_settings().get("example_frontend", False) else 1)'; then
-  .venv/bin/python -m exhibition.frontend &
+if "$python_bin" -c 'from exhibition.startup import server_settings; import sys; sys.exit(0 if server_settings().get("example_frontend", False) else 1)'; then
+  "$python_bin" -m exhibition.frontend &
   frontend_pid=$!
 fi
-.venv/bin/python -c 'from exhibition.startup import announce; announce()'
+"$python_bin" -c 'from exhibition.startup import announce; announce()'
 # A failed worker stops the pair so the terminal cannot claim the server is healthy.
 while kill -0 "$user1_pid" 2>/dev/null && kill -0 "$user2_pid" 2>/dev/null; do
   if [ -n "$frontend_pid" ] && ! kill -0 "$frontend_pid" 2>/dev/null; then break; fi

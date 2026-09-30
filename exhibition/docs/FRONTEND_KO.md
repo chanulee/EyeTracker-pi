@@ -129,3 +129,11 @@ const stops = [1, 2].map(id => connectGaze(
 ## 교체 가능한 별도 예시 프론트엔드
 
 기본 실행은 별도 HTTP 프로세스의 `http://localhost:5173`에 예시 작품을 제공합니다. 작품 파일은 `exhibition/frontend-example/index.html`이며 두 사용자의 `/gaze`를 동시에 구독합니다. [예시 교체 안내](../frontend-example/README.md)를 참고하세요. 이 프론트엔드는 관리자나 compute API에 작품 코드를 넣지 않습니다. 화면 파일만 교체하거나 `--frontend-url URL`로 자신의 프론트엔드 서버로 바꿀 수 있습니다. 내장 예시의 localhost `/connection.json`은 시선 구독 토큰만 제공하고 Pi 영상 전송 토큰은 제공하지 않습니다.
+
+`GET /api/exhibition`은 Mac localhost 관리자용이며 `lan_address`와 사용자별 `players[].receiver_url`도 반환합니다. 자동 주소 감지가 실패하면 해당 값은 null입니다. 작품은 기존 `/gaze` 계약을 사용합니다.
+
+## Pupil Labs 3D 실험의 추가 값
+
+`bash start-pupil.sh`로 실행하면 `direction`은 동공 광학 축의 카메라 기준 단위 벡터이며 `direction_frame="eye_camera"`, `origin_unit="mm"`입니다. x는 영상 오른쪽, y는 아래, z는 카메라에서 멀어지는 방향입니다. `relative_angles`는 정면 기준 저장 후의 상대 yaw/pitch(도)이며 기준이 없거나 추적이 끊기면 null입니다. 실제 시각 축이나 화면 좌표를 의미하지 않습니다. 작품은 계속 `valid`를 확인한 뒤 보정된 `x/y`를 사용합니다.
+
+localhost 관리자 상태에는 `tracker_details`의 엔진·모델 상태·초점거리 측정 여부와 `neutral_set`을 추가합니다. `POST /api/calibration`의 `action="neutral"`은 모델 준비와 최근 안정된 방향을 검사한 뒤 정면을 저장합니다. 새 관람객·카메라 재연결·서버 재시작은 이를 초기화합니다. `/preview.jpg?overlay=1`은 Mac 회전과 최신 동공 타원을 표시하고, 기본 `/preview.jpg`는 수신 JPEG 바이트를 그대로 제공합니다. [실험 안내](PUPIL3D_KO.md)를 참고하세요.

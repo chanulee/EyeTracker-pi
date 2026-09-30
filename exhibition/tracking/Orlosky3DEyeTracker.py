@@ -272,7 +272,15 @@ def check_contour_pixels(contour, image_shape, debug_mode_on):
     # Compute the ratio of pixels under the ellipse to the total pixels on the contour border
     total_border_pixels = np.sum(contour_mask > 0)
     
-    ratio_under_ellipse = absolute_pixel_total_thin / total_border_pixels if total_border_pixels > 0 else 0
+    # A fixed four-pixel border is brittle after low-resolution JPEG upscaling.
+    # Compare filled regions instead: Dice overlap measures ellipse shape fit.
+    filled_contour = np.zeros(image_shape, dtype=np.uint8)
+    filled_ellipse = np.zeros(image_shape, dtype=np.uint8)
+    cv2.drawContours(filled_contour, [contour], -1, 255, -1)
+    cv2.ellipse(filled_ellipse, ellipse, 255, -1)
+    combined_area = cv2.countNonZero(filled_contour) + cv2.countNonZero(filled_ellipse)
+    overlap_area = cv2.countNonZero(cv2.bitwise_and(filled_contour, filled_ellipse))
+    ratio_under_ellipse = 2.0 * overlap_area / combined_area if combined_area else 0.0
     
     return [absolute_pixel_total_thick, ratio_under_ellipse, overlap_thin]
 
@@ -330,7 +338,10 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
 
     final_rotated_rect = ((0,0),(0,0),0)
 
-    image_array = [thresholded_image_relaxed, thresholded_image_medium, thresholded_image_strict] #holds images
+    image_array = [thresholded_image_relaxed, thresholded_image_medium, thresholded_image_strict]
+    if globals().get("HEADLESS", False):
+        base = int(gray_frame[darkest_point[1], darkest_point[0]])
+        image_array.append(mask_outside_square(apply_binary_threshold(gray_frame, base, 40), darkest_point, 250))
     name_array = ["relaxed", "medium", "strict"] #for naming windows
     final_contours = [] #holds final contours
     goodness = 0 #goodness value for best ellipse
@@ -346,7 +357,7 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     best_center_x, best_center_y = None, None
 
     # iterate through binary images and see which fits the ellipse best
-    for i in range(1,4):
+    for i in range(1, len(image_array) + 1):
         dilated_image = cv2.dilate(image_array[i-1], kernel, iterations=2)
 
         contours, _ = cv2.findContours(
@@ -378,7 +389,8 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
                 debug_mode_on
             )
 
-            cv2.ellipse(gray_copies[i-1], ellipse, (255, 0, 0), 2)
+            if DISPLAY_ENABLED:
+                cv2.ellipse(gray_copies[i-1], ellipse, (255, 0, 0), 2)
 
             final_goodness = (
                 current_goodness[0]

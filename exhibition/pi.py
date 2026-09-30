@@ -3,6 +3,7 @@ import argparse
 import asyncio
 import base64
 import contextlib
+from collections import deque
 import hmac
 import logging
 from pathlib import Path
@@ -19,7 +20,56 @@ from .common import load_config, number, receiver_url, save_config
 
 LOG = logging.getLogger('eye-pi')
 DEFAULTS = dict(receiver='ws://mac-mini.local:8080/camera', token='', camera=0,
-                width=320, height=240, fps=20, quality=65, flip=False, admin_password='')
+                width=320, height=240, fps=20, quality=65, flip=False, transport='auto', admin_password='')
+
+
+def jpeg_size(data):
+    """Read JPEG frame dimensions without decoding pixels on the Pi."""
+    if len(data) < 4 or data[:2] != b'\xff\xd8':
+        return None
+    i = 2
+    while i + 3 < len(data):
+        if data[i] != 255:
+            return None
+        while i < len(data) and data[i] == 255:
+            i += 1
+        if i >= len(data):
+            return None
+        marker = data[i]
+        i += 1
+        if marker in (0xd9, 0xda):
+            return None
+        if marker == 0x01 or 0xd0 <= marker <= 0xd8:
+            continue
+        size = int.from_bytes(data[i:i + 2], 'big')
+        if size < 2 or i + size > len(data):
+            return None
+        if marker in (0xc0, 0xc1, 0xc2):
+            if size < 8:
+                return None
+            return (int.from_bytes(data[i + 5:i + 7], 'big'), int.from_bytes(data[i + 3:i + 5], 'big'))
+        i += size
+    return None
+
+
+def capture_settings(config):
+    return tuple(config[key] for key in ('camera', 'width', 'height', 'fps', 'quality', 'flip', 'transport'))
+
+
+class FrameRateGate:
+    """Keep fractional camera/output rates without rounding down to every Nth frame."""
+    def __init__(self, fps):
+        self.period = 1 / fps
+        self.due = None
+
+    def accept(self, now):
+        if self.due is None:
+            self.due = now + self.period
+            return True
+        if now + 1e-6 < self.due:
+            return False
+        self.due += (max(0, int((now - self.due) / self.period)) + 1) * self.period
+        return True
 
 
 def validate(data):
@@ -28,10 +78,12 @@ def validate(data):
     if set(data) - (set(DEFAULTS) - {'admin_password'}):
         raise ValueError('알 수 없는 설정')
     result = dict(data)
+    if 'transport' in data and data['transport'] not in ('auto', 'decoded'):
+        raise ValueError('영상 전송 방식은 auto 또는 decoded입니다')
     if 'receiver' in data:
         result['receiver'] = receiver_url(data['receiver'])
     if 'token' in data and (not isinstance(data['token'], str) or len(data['token']) < 16):
-        raise ValueError('Mac 연결 토큰은 16자 이상이어야 합니다')
+        raise ValueError('Pi 영상 전송 토큰은 16자 이상이어야 합니다')
     for key, bounds in dict(camera=(0, 20), width=(160, 640), height=(120, 480),
                             fps=(1, 30), quality=(30, 90)).items():
         if key in data:
@@ -49,46 +101,97 @@ class Camera:
         self.latest = None
         self.sequence = 0
         self.status = '카메라 시작 중'
+        self.capture_info = dict(capture_width=None, capture_height=None, camera_reported_fps=None,
+                                 fps_request_accepted=None, transport_mode='대기', transport_note=None)
         self.thread = threading.Thread(target=self.run, daemon=True)
+        self.native_failed = None
+        self.capture_times = deque(maxlen=90)
+        self.output_times = deque(maxlen=90)
 
     def snapshot(self):
         with self.lock:
             return self.sequence, self.latest, self.status
 
+    def diagnostics(self):
+        with self.lock:
+            native = self.capture_info['transport_mode'] == 'camera-mjpeg'
+            def fps(history):
+                times = [t for t in history if time.monotonic() - t < 2]
+                return round((len(times) - 1) / (times[-1] - times[0]), 1) if len(times) > 1 and times[-1] > times[0] else 0.
+            return dict(self.capture_info, output_width=self.capture_info['capture_width'] if native else self.config['width'],
+                        output_height=self.capture_info['capture_height'] if native else self.config['height'],
+                        captured_fps=fps(self.capture_times), output_fps=fps(self.output_times),
+                        requested_fps=self.config['fps'])
+
     def run(self):
         while not self.stop.is_set():
             settings = dict(self.config)
+            geometry = capture_settings(settings)
+            native = settings['transport'] == 'auto' and not settings['flip'] and self.native_failed != geometry
             cap = cv2.VideoCapture(settings['camera'], cv2.CAP_V4L2)
             try:
+                if native:
+                    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, settings['width'])
                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, settings['height'])
+                fps_accepted = cap.set(cv2.CAP_PROP_FPS, settings['fps'])
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 if not cap.isOpened():
                     raise RuntimeError('카메라를 열 수 없습니다. /dev/video 번호를 확인하세요')
-                last = 0.
-                while not self.stop.is_set() and settings == self.config:
+                if native and not cap.set(cv2.CAP_PROP_CONVERT_RGB, 0):
+                    self.native_failed = geometry
+                    continue  # Reopen normally when raw JPEG capture is unsupported.
+                reported_fps = cap.get(cv2.CAP_PROP_FPS)
+                with self.lock:
+                    self.capture_info.update(camera_reported_fps=reported_fps if reported_fps > 0 else None,
+                                             fps_request_accepted=bool(fps_accepted))
+                gate = FrameRateGate(settings['fps'])
+                while not self.stop.is_set() and geometry == capture_settings(self.config):
                     ok, frame = cap.read()
                     if not ok:
                         raise RuntimeError('카메라 프레임 읽기 실패')
+                    jpg = None
+                    if native:
+                        jpg = frame.tobytes()
+                        dimensions = jpeg_size(jpg)
+                        if not dimensions or not (0 < dimensions[0] <= 640 and 0 < dimensions[1] <= 480):
+                            self.native_failed = geometry
+                            break  # Retry decoded capture; never send a raw pixel buffer as JPEG.
+                    else:
+                        dimensions = (frame.shape[1], frame.shape[0])
+                    with self.lock:
+                        self.capture_times.append(time.monotonic())
+                        self.capture_info.update(capture_width=dimensions[0], capture_height=dimensions[1],
+                                                 transport_mode='camera-mjpeg' if native else 'pi-jpeg',
+                                                 transport_note=None if native else 'Pi에서 JPEG 인코딩 (MJPEG 미지원 또는 회전/수동 모드)')
                     now = time.monotonic()
-                    if now - last < 1 / settings['fps']:
+                    if not gate.accept(now):
                         continue
-                    last = now
-                    frame = cv2.resize(frame, (settings['width'], settings['height']))
-                    if settings['flip']:
-                        frame = cv2.flip(frame, -1)
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    ok, jpg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, settings['quality']])
+                    if native:
+                        ok = True
+                    else:
+                        if dimensions != (settings['width'], settings['height']):
+                            frame = cv2.resize(frame, (settings['width'], settings['height']))
+                        if settings['flip']:
+                            frame = cv2.flip(frame, -1)
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        ok, encoded = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, settings['quality']])
+                        jpg = encoded.tobytes() if ok else None
                     if ok:
                         with self.lock:
                             self.sequence += 1
-                            self.latest = (now, jpg.tobytes())
+                            self.output_times.append(now)
+                            self.latest = (now, jpg)
                             self.status = '카메라 정상'
             except Exception as error:
                 LOG.warning('%s', error)
+                if native:
+                    self.native_failed = geometry
                 with self.lock:
                     self.latest = None
                     self.status = str(error)
+                    self.capture_info.update(capture_width=None, capture_height=None, camera_reported_fps=None,
+                                             fps_request_accepted=None, transport_mode='대기', transport_note=None)
                 self.stop.wait(2)
             finally:
                 cap.release()
@@ -139,7 +242,8 @@ def create_app(config_path):
     async def status(request):
         seq, latest, message = camera.snapshot()
         return web.json_response(dict(connection, hostname=socket.gethostname(), camera=message, sequence=seq,
-                                     frame_age_ms=round((time.monotonic() - latest[0]) * 1000) if latest else None))
+                                     frame_age_ms=round((time.monotonic() - latest[0]) * 1000) if latest else None,
+                                     **camera.diagnostics()))
 
     async def preview(request):
         _, latest, _ = camera.snapshot()

@@ -3,6 +3,7 @@ __pycache__/
 gaze_vector.txt
 .venv/
 .venv-pi/
+.venv-pupil/
 exhibition/*-config.json
 exhibition/*-config.tmp
 .DS_Store

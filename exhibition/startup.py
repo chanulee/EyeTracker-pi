@@ -106,7 +106,7 @@ def announce():
         connection = '연결됨' if state['camera_connected'] else '연결 대기'
         print(f'{user}P Pi: {connection} · ws://{lan}:{port}/camera')
     print(f'\n통합 관리자: {ADMIN}')
-    print('Pi 전송 토큰 / 작품 구독 토큰 / 보정 / 연결 상태는 관리자에서 확인하세요.')
+    print('Pi 영상 전송 토큰 / 작품 시선 구독 토큰 / 보정 / 연결 상태는 관리자에서 확인하세요.')
     print('\n작품 프론트엔드:', frontend or '주소 미등록 (별도 개발·실행 필요)')
     if server_settings().get('example_frontend', False):
         print('예시 작품 실행 중 · 교체할 화면: exhibition/frontend-example/index.html')

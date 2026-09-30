@@ -13,7 +13,7 @@
 <details><summary>카메라 및 연결 상태</summary><img id="preview" alt="Pi 눈 카메라 영상"><pre id="state"></pre></details>
 <details><summary>Mac 설정 / 프론트엔드 연결</summary>
 <p>Pi의 설정 페이지에서 수신 주소 <code id="receiverEndpoint"></code>와 아래 토큰을 입력하세요.</p>
-<label>Pi 연결 토큰<input id="token" type="password" readonly aria-label="Pi 연결 토큰"></label><button id="copy">토큰 복사</button>
+<label>Pi 영상 전송 토큰<input id="token" type="password" readonly aria-label="Pi 영상 전송 토큰"></label><button id="copy">토큰 복사</button>
 <p>프론트엔드는 <code id="gazeEndpoint"></code>를 구독하세요. 원점은 뷰포트 왼쪽 위, x/y는 0–1입니다.</p>
 <form id="settings"><label>허용할 프론트엔드 Origin (한 줄에 하나)<textarea name="allowed_origins" placeholder="http://localhost:5173"></textarea></label>
 <label>안정화 시간 (ms, 높을수록 부드럽지만 느림)<input name="smoothing_ms" type="number" min="10" max="500" required></label>
@@ -33,7 +33,8 @@ async function request(path, data) {
  return response.json();
 }
 const cal=data=>request('/api/calibration',data);
-$('receiverEndpoint').textContent=`ws://Mac의WiFi주소:${location.port}/camera`;
+$('receiverEndpoint').textContent='주소 확인 중';
+request('/api/exhibition').then(info=>{$('receiverEndpoint').textContent=info.lan_address?`ws://${info.lan_address}:${location.port}/camera`:'Mac LAN 주소 확인 실패';}).catch(()=>{$('receiverEndpoint').textContent='주소 확인 실패';});
 $('gazeEndpoint').textContent=`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`;
 const subscription=await request('/api/config');
 connectGaze(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`, data=>{

@@ -7,11 +7,13 @@ body{font:16px system-ui;background:#151b25;color:#eaf0fa;max-width:700px;margin
 <h1>Eye Pi 설정</h1><p>Pi에서 브라우저를 열 필요 없이 이 화면에서 Mac 수신 주소를 저장하세요.</p>
 <form id="settings">
 <label>Mac 수신 WebSocket 주소<input name="receiver" required placeholder="ws://mac-mini.local:8080/camera"></label>
-<label>Mac 연결 토큰<input name="token" type="password" required minlength="16" autocomplete="off"></label>
+<label>Pi 영상 전송 토큰<input name="token" type="password" required minlength="16" autocomplete="off"></label>
 <label>USB 카메라 번호 (/dev/video0 → 0)<input name="camera" type="number" min="0" max="20" required></label>
 <label>영상 너비<input name="width" type="number" min="160" max="640" required></label>
 <label>영상 높이<input name="height" type="number" min="120" max="480" required></label>
 <label>최대 FPS<input name="fps" type="number" min="1" max="30" required></label>
+<label>영상 전송 방식<select name="transport"><option value="auto">카메라 MJPEG 우선 (Pi 계산 최소화)</option><option value="decoded">Pi에서 JPEG 인코딩</option></select></label>
+<p>MJPEG 직송은 카메라가 지원할 때만 사용합니다. 상태의 transport_mode가 camera-mjpeg인지 확인하세요. 이 모드에서는 JPEG 품질은 카메라 설정을 따릅니다. 회전은 Mac에서 설정하세요. Pi 회전을 켜면 재인코딩합니다.</p>
 <label>JPEG 품질<input name="quality" type="number" min="30" max="90" required></label>
 <label><input name="flip" type="checkbox"> 영상을 180° 회전</label>
 <button>저장하고 다시 연결</button></form>
@@ -32,7 +34,7 @@ request('/api/config').then(data=>{
 }).catch(error=>message.textContent=error.message);
 form.onsubmit=async event=>{
  event.preventDefault(); const data={};
- for(const input of form.querySelectorAll('input')) data[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
+ for(const input of form.querySelectorAll('input,select')) data[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
  try{await request('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});message.textContent='저장했습니다. 자동으로 재연결합니다.';}
  catch(error){message.textContent=error.message;}
 };

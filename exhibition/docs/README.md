@@ -8,5 +8,7 @@
 | [MAC_MINI_KO.md](MAC_MINI_KO.md) | 현재 전시용 Mac의 설치 확인 기록과 시작·종료 방법 |
 | [FRONTEND_KO.md](FRONTEND_KO.md) | 두 사용자 시선 구독, 토큰, 좌표·세션·무효화 계약 |
 | [REPOSITORY_KO.md](REPOSITORY_KO.md) | exhibition / legacy 구분과 폴더 이동표 |
+| [PUPIL3D_KO.md](PUPIL3D_KO.md) | 단안·아래쪽 카메라의 Pupil Labs 3D 방향 실험, 정면 기준과 Pi 업데이트 |
+| [TRACKING_DESIGN_KO.md](TRACKING_DESIGN_KO.md) | 근접 추적·착용 안내 개발안, Apple Vision 조사와 24 FPS 개선 |
 
 원본 소개와 이전 데모 문서는 [legacy/docs](../../legacy/docs/)에 있습니다.

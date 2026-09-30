@@ -90,7 +90,7 @@ bash start-mac.sh --simulate
 ## 3. Pi 연결 설정
 
 1. Mac에서 **http://eye-pi.local:8000**을 엽니다. 설치 시 출력된 admin 비밀번호로 로그인합니다. `.local`이 안 되면 공유기의 Pi IP를 사용하세요.
-2. Mac 운영 화면의 “Mac 설정 / 프론트엔드 연결”에서 Pi 연결 토큰을 복사합니다.
+2. Mac 운영 화면의 “Mac 설정 / 프론트엔드 연결”에서 Pi 영상 전송 토큰을 복사합니다.
 3. Pi UI에서 `ws://Mac의WiFiIP:8080/camera`를 입력하고 토큰을 붙여넣어 저장합니다. 주소는 Pi에서 접근 가능한 Mac 주소여야 합니다. `localhost`는 사용할 수 없습니다. Mac IP는 시스템 설정 → Wi-Fi → 세부사항 → TCP/IP에서 확인하세요. DHCP 예약을 설정하면 재부팅마다 주소를 바꾸는 일을 줄일 수 있습니다. `mac-mini.local` 같은 hostname도 네트워크에서 해석되면 가능합니다.
 4. 기본값 320×240, 20 FPS, 품질 65로 시작합니다. Pi UI 상태에서 “카메라 정상”, “Mac 연결됨”을 확인하고 Mac에서 영상 미리보기를 확인합니다.
 5. 영상 장착 방향이 거꾸로면 Pi UI의 180° 회전을 사용합니다. Mac의 회전 설정과 동시에 켜면 다시 원래 방향이 됩니다. 영상 크기/회전/카메라 장착을 바꾼 뒤 “새 관람객”부터 다시 보정하세요.
@@ -150,7 +150,7 @@ Mac 중지는 Ctrl+C. Pi 자동실행 중지는 `sudo systemctl disable --now ey
 
 ## 개발 검증 기록 (2026-09-30)
 
-현재 전시용 Mac 환경 Python 3.12.14 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 총 16개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
+현재 전시용 Mac 환경 Python 3.12.14 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 총 18개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
 
 ```bash
 .venv/bin/python -m unittest discover -s exhibition/tests -v
@@ -183,3 +183,39 @@ Pi OS 패키지 설치와 systemd 부팅은 이 Mac에서 실행하지 않았습
 `bash start-mac.sh`는 1P·2P compute worker와 `http://localhost:5173` 예시 작품 서버를 함께 시작합니다. 터미널에는 Pi SW → Mac mini compute server → 작품 프론트엔드 구조, 각 Pi의 실제 LAN 수신 주소와 연결 상태, 통합 관리자 URL, 작품 URL과 구독 주소가 표시됩니다. OpenGL은 전시의 GUI 없는 추론 경로에서 불러오지 않습니다. 준비가 끝나면 기본 브라우저로 관리자를 엽니다. 자동 열기를 끄려면 `--no-open`을 추가합니다.
 
 예시 작품은 `exhibition/frontend-example/index.html`만 교체하면 됩니다. 다른 작품 서버를 사용하려면 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh --frontend-url http://localhost:5173`처럼 실행합니다. 이때 내장 예시는 시작하지 않으므로 작품 개발 서버를 별도로 실행하세요. 지정 주소는 `exhibition/server-config.json`에 저장됩니다. `--frontend-url ''`는 내장 예시로 복귀합니다. 내장 예시 Origin은 자동 등록하며 외부 작품 Origin은 두 사용자 관리자 카드에 등록하세요. 단일 사용자 개발은 `bash start-mac.sh --single-user`입니다.
+
+## 토큰·Mac 주소·Pi 업데이트
+
+Pi가 Mac에 영상을 보낼 때 사용하는 이름은 **Pi 영상 전송 토큰**으로 통일합니다. 작품 프론트엔드가 좌표를 받을 때는 별도의 **작품 시선 구독 토큰**을 사용합니다. Mac 토큰은 최초 생성 후 사용자별 `exhibition/mac-config.json`, `exhibition/mac-user2-config.json`에 저장되므로 Mac/Pi 재부팅, 서버 재시작, 새 관람객 보정이나 일반 코드 업데이트로 바뀌지 않습니다. 해당 Mac 설정을 삭제하거나 다른 설정 파일로 새 서버를 만들면 토큰이 새로 생성됩니다. Pi에 저장한 토큰도 `exhibition/pi-config.json`에 유지됩니다. 보정 상태는 토큰과 달리 서버 재시작·Pi 재연결 후 초기화됩니다.
+
+관리자 카드의 **Pi에 입력할 영상 수신 주소**가 실제 Mac LAN IP를 자동 감지해 표시하며 복사 버튼이 있습니다. 페이지는 30초마다 주소를 다시 확인합니다. `0.0.0.0`은 서버가 모든 인터페이스에서 연결을 받는 바인딩 주소로, Pi에 입력할 Mac 주소가 아닙니다. LAN IP는 공유기나 네트워크가 바뀌면 달라질 수 있으므로 관리자에 표시된 주소를 다시 저장하세요. DHCP 예약을 사용하면 주소를 유지하기 쉽습니다. 자동 감지가 실패하면 Mac의 네트워크 설정에서 실제 IP를 확인합니다.
+
+Pi 업데이트는 SSH로 Pi에 접속한 상태에서 최초 설치와 같은 명령을 다시 실행할 수 있습니다. 최신 GitHub main으로 fast-forward 업데이트하고 필요한 의존성 설치와 서비스를 재시작합니다. 저장된 토큰과 UI 비밀번호 등 로컬 설정은 유지합니다. 수정 중인 코드가 있거나 main이 아닌 경우에는 덮어쓰지 않고 중단합니다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chanulee/EyeTracker-pi/main/install.sh -o /tmp/eye-install.sh && bash /tmp/eye-install.sh
+```
+
+이번 변경을 GitHub에 올려 설치한 이후에는 아래 전용 업데이트 진입점도 같은 작업을 합니다.
+
+```bash
+cd ~/EyeTracker-pi
+bash exhibition/scripts/update-pi.sh
+```
+
+Mac 코드는 해당 Mac 저장소를 업데이트한 후 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh`로 다시 시작합니다. 전시 운용 중 업데이트하면 연결과 보정이 초기화되므로 새로 보정합니다.
+
+## 근접 눈 카메라의 노출·초점·해상도
+
+밝기, 초점, 화각은 각각 확인합니다. 하얗게 포화되어 잃은 정보나 렌즈의 가까운 초점 범위를 벗어난 흐림은 송신 해상도를 바꿔 복구할 수 없습니다. 먼저 카메라가 노출·게인·초점·줌을 조절할 수 있는지 Pi에서 확인합니다.
+
+```bash
+v4l2-ctl -d /dev/video0 --list-ctrls-menus
+v4l2-ctl -d /dev/video0 --list-formats-ext
+```
+
+Pi는 설정 해상도와 FPS를 카메라에 요청하지만 지원하지 않는 값은 장치가 거부할 수 있습니다. Pi UI 상태의 `capture_width/height`는 실제 읽은 입력 크기, `output_width/height`는 송신 크기입니다. `requested_fps`, `camera_reported_fps`(드라이버 보고값), `fps_request_accepted`도 표시합니다. 보고 FPS는 실측 FPS가 아닙니다. 지원하지 않는 낮은 해상도를 선택하면 큰 입력을 소프트웨어로 축소하는 데 그칠 수 있습니다.
+
+현재 Mac 트래커는 입력을 640×480으로 리사이즈한 뒤 처리합니다. 낮은 송신 해상도는 네트워크 부담을 줄이지만 Mac 핵심 처리의 픽셀 수는 그대로입니다. Pi 설정의 영상 전송 방식을 `auto`로 두고 회전은 Mac에서 설정하세요. 카메라가 지원하면 `transport_mode=camera-mjpeg`로 JPEG 원본 바이트를 직접 보내 Pi의 디코딩·리사이즈·재압축을 생략합니다. JPEG 품질 설정은 Pi 인코딩 모드에만 적용됩니다. 미지원 카메라는 자동으로 Pi 인코딩 경로로 복귀합니다.
+
+24 FPS 목표라면 지원되는 30 FPS 카메라 모드에서 Pi 최대 FPS를 30으로 설정합니다. 상태의 `captured_fps`, `output_fps`는 최근 실측 평균이고 `camera_reported_fps`는 드라이버 보고값입니다. Mac 처리 FPS와 비교해 캡처·출력·네트워크/추론 중 병목을 찾습니다. FPS 제한은 누적 시각을 사용해 30 FPS 입력을 20 FPS로 제한할 때 15 FPS로 떨어지는 문제를 방지합니다. [근접 추적과 보정 개발안](TRACKING_DESIGN_KO.md)에 Apple Vision·오픈소스 조사 및 다음 구현 단계를 정리했습니다. 새 2D 엔진과 착용 안내는 아직 개발안입니다.

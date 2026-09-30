@@ -15,10 +15,83 @@ import numpy as np
 from exhibition.common import load_config, save_config
 from exhibition.gaze import POINTS, Stabilizer, fit_calibration, predict
 from exhibition.mac import create_app, load_tracker, RUNTIME_KEY
-from exhibition.pi import create_app as pi_app, DEFAULTS as PI_DEFAULTS, validate
+from exhibition.pi import create_app as pi_app, DEFAULTS as PI_DEFAULTS, validate, Camera, jpeg_size, FrameRateGate, capture_settings
 
 
 class MathCheck(unittest.TestCase):
+    def test_fractional_fps_gate(self):
+        # A 30 FPS camera must produce 20/24 FPS, not 15 FPS by alternate skipping.
+        for fps in (20, 24, 30):
+            gate = FrameRateGate(fps)
+            self.assertEqual(sum(gate.accept(i / 30) for i in range(301)), fps * 10 + 1)
+        gate = FrameRateGate(24)
+        self.assertTrue(gate.accept(0))
+        self.assertTrue(gate.accept(100))
+        self.assertFalse(gate.accept(100.001))  # No burst after a stalled camera.
+
+    def test_camera_native_jpeg_passthrough(self):
+        _, encoded = cv2.imencode('.jpg', np.full((240, 320, 3), 100, np.uint8))
+        jpg = encoded.tobytes()
+        self.assertEqual(jpeg_size(jpg), (320, 240))
+        for invalid in (b'', b'pixels', b'\xff\xd8\xff\xc0\x00\x07', jpg[:20]):
+            self.assertIsNone(jpeg_size(invalid))
+        camera = Camera(dict(PI_DEFAULTS))
+
+        class Capture:
+            def set(self, key, value):
+                return True
+            def get(self, key):
+                return 30.
+            def isOpened(self):
+                return True
+            def read(self):
+                camera.stop.set()
+                return True, encoded.reshape(1, -1)
+            def release(self):
+                pass
+
+        with patch('exhibition.pi.cv2.VideoCapture', return_value=Capture()), \
+             patch('exhibition.pi.cv2.resize', side_effect=AssertionError('Pi resize used')), \
+             patch('exhibition.pi.cv2.cvtColor', side_effect=AssertionError('Pi conversion used')), \
+             patch('exhibition.pi.cv2.imencode', side_effect=AssertionError('Pi encoder used')):
+            camera.run()
+        self.assertEqual(camera.snapshot()[1][1], jpg)
+        self.assertEqual(camera.diagnostics()['transport_mode'], 'camera-mjpeg')
+        self.assertEqual(capture_settings(PI_DEFAULTS), capture_settings(dict(PI_DEFAULTS, token='new', receiver='ws://other/camera')))
+
+    def test_camera_fps_request_and_native_resolution_diagnostics(self):
+        camera = Camera(dict(PI_DEFAULTS, fps=15))
+        calls = []
+
+        class Capture:
+            def set(self, key, value):
+                calls.append((key, value))
+                return False  # Hardware can reject requested settings.
+
+            def get(self, key):
+                return 30.
+
+            def isOpened(self):
+                return True
+
+            def read(self):
+                camera.stop.set()
+                return True, np.full((480, 640, 3), 127, np.uint8)
+
+            def release(self):
+                pass
+
+        with patch('exhibition.pi.cv2.VideoCapture', return_value=Capture()):
+            camera.run()
+        self.assertIn((cv2.CAP_PROP_FPS, 15), calls)
+        info = camera.diagnostics()
+        self.assertEqual((info['capture_width'], info['capture_height']), (640, 480))
+        self.assertEqual((info['output_width'], info['output_height']), (320, 240))
+        self.assertFalse(info['fps_request_accepted'])
+        self.assertEqual(info['camera_reported_fps'], 30.)
+        jpg = camera.snapshot()[1][1]
+        self.assertEqual(cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_GRAYSCALE).shape, (240, 320))
+
     def test_calibration_and_filter(self):
         inputs = [[(x - .5) * .8, (.5 - y) * .8] for x, y in POINTS]
         model = fit_calibration(inputs, POINTS)
@@ -65,6 +138,19 @@ class MathCheck(unittest.TestCase):
         finally:
             capture.release()
 
+    def test_pupil_center_with_bright_glint(self):
+        tracker = load_tracker()
+        for x, y in [(120, 100), (320, 240), (460, 280)]:
+            image = np.full((480, 640, 3), 220, np.uint8)
+            cv2.ellipse(image, (x, y), (40, 55), 10, 0, 360, (20, 20, 20), -1)
+            cv2.circle(image, (x + 10, y - 10), 6, (255, 255, 255), -1)
+            tracker.reset_tracking_state()
+            tracker.process_frame(image)
+            result = tracker.get_last_tracking_result()
+            self.assertIsNotNone(result)
+            self.assertGreater(result['confidence'], .85)
+            np.testing.assert_allclose(result['pupil_ellipse']['center'], [x, y], atol=3)
+
 
 class NetworkCheck(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -103,7 +189,11 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
             stop.set()
             await task
             self.assertEqual(response.status, 200, await response.text())
-        await self.post('/api/demo', {'x': .7, 'y': .4})
+        # A continuous gaze lets the intentional smoothing filter settle.
+        # One update cannot be expected to jump immediately to the new target.
+        for _ in range(20):
+            await self.post('/api/demo', {'x': .7, 'y': .4})
+            await asyncio.sleep(.025)
         self.assertTrue(self.runtime.packet()['valid'])
         self.assertAlmostEqual(self.runtime.packet()['x'], .7, delta=.02)
         self.runtime.received = time.monotonic() - 1
@@ -130,9 +220,23 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.get('/api/config', headers={'Host': 'evil.example'})).status, 403)
         persisted = load_config(self.config_path, {})
         self.assertEqual(persisted['allowed_origins'], ['http://localhost:5173'])
+        reloaded = create_app(self.config_path, simulate=True)[RUNTIME_KEY]
+        self.assertEqual(reloaded.config['token'], self.runtime.config['token'])
+        self.assertEqual(reloaded.config['gaze_token'], self.runtime.config['gaze_token'])
         self.assertEqual(self.config_path.stat().st_mode & 0o777, 0o600)
         self.assertEqual((await self.post('/api/calibration', {'action': 'begin'})).status, 400)
         self.assertEqual((await self.post('/api/demo', {'x': float('nan'), 'y': 0})).status, 400)
+
+    async def test_lan_receiver_addresses_are_local_only(self):
+        with patch('exhibition.startup.lan_address', return_value='192.168.1.20'):
+            data = await (await self.client.get('/api/exhibition')).json()
+        self.assertEqual(data['players'][0]['receiver_url'], 'ws://192.168.1.20:8080/camera')
+        self.assertEqual(data['players'][1]['receiver_url'], 'ws://192.168.1.20:8081/camera')
+        self.assertEqual((await self.client.get('/api/exhibition', headers={'Host': 'evil.example'})).status, 403)
+        with patch('exhibition.startup.lan_address', return_value='Mac의LAN주소'):
+            data = await (await self.client.get('/api/exhibition')).json()
+        self.assertIsNone(data['lan_address'])
+        self.assertIsNone(data['players'][0]['receiver_url'])
 
     async def test_subscription_token_and_local_dashboard(self):
         self.assertEqual((await self.client.get('/admin')).status, 200)
@@ -207,6 +311,12 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await ws.receive()).data, 'ack')
             self.assertEqual(runtime.seq, 1)
             self.assertIsNotNone(runtime.jpg)
+            raw_preview = await client.get('/preview.jpg')
+            self.assertEqual(await raw_preview.read(), jpg.tobytes())
+            overlay = await client.get('/preview.jpg?overlay=1')
+            self.assertEqual(overlay.status, 200)
+            annotated = cv2.imdecode(np.frombuffer(await overlay.read(), np.uint8), cv2.IMREAD_COLOR)
+            self.assertEqual(annotated.shape[:2], (480, 640))
             await ws.send_bytes(b'bad jpeg')
             self.assertEqual((await ws.receive()).data, 'ack')
             self.assertFalse(runtime.packet()['tracking'])

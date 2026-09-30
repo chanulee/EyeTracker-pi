@@ -6,6 +6,7 @@
 EyeTracker-pi/
 ├── README.md
 ├── start-mac.sh                     Mac 시작 진입점
+├── start-pupil.sh                   Pupil Labs 3D 방향 실험 진입점
 ├── install.sh                       새 Pi 설치 진입점
 ├── LICENSE                          원본 MIT 라이선스
 ├── exhibition/                      현재 전시

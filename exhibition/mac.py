@@ -5,6 +5,7 @@ import contextlib
 import hmac
 import importlib.util
 import logging
+import os
 from pathlib import Path
 import secrets
 import time
@@ -61,6 +62,12 @@ class Runtime:
         self.calibrating = False
         self.raw = self.direction = self.origin = self.pupil = self.xy = None
         self.confidence = 0.
+        self.detection_quality = 0.
+        self.pupil_detected = False
+        self.pupil_candidate = None
+        self.tracker_details = dict(getattr(self.tracker, 'metadata', {}))
+        self.direction_history = deque(maxlen=90)
+        self.neutral_direction = None
         self.ready = False
         self.filter.reset()
         self.reset_pending = True
@@ -77,7 +84,31 @@ class Runtime:
                     direction=self.direction if tracking else None, origin=self.origin if tracking else None,
                     pupil=self.pupil if tracking else None, confidence=self.confidence if tracking else 0.,
                     frame_age_ms=round(age * 1000) if self.received else None,
-                    camera_connected=self.receiver is not None, error=self.error)
+                    camera_connected=self.receiver is not None, error=self.error,
+                    direction_frame=self.tracker_details.get('direction_frame'),
+                    origin_unit=self.tracker_details.get('origin_unit'),
+                    relative_angles=self.angles() if tracking else None)
+
+    def angles(self):
+        if self.direction is None or self.neutral_direction is None:
+            return None
+        from .tracking.pupil3d import relative_angles
+        return relative_angles(self.direction, self.neutral_direction)
+
+    def set_neutral(self):
+        if not self.packet()['ready'] or self.tracker_details.get('engine') != 'pupil':
+            raise ValueError('Pupil 3D 눈 모델 준비 후 정면을 보세요')
+        window = [(stamp, direction) for stamp, direction in self.direction_history if time.monotonic() - stamp < 1]
+        if len(window) < 12 or window[-1][0] - window[0][0] < .8:
+            raise ValueError('정면을 1초 이상 보세요. 유효 방향이 부족합니다')
+        samples = np.asarray([direction for _, direction in window])
+        center = np.median(samples, axis=0)
+        center /= np.linalg.norm(center)
+        if np.percentile(np.degrees(np.arccos(np.clip(samples @ center, -1, 1))), 90) > 5:
+            raise ValueError('정면을 유지하세요. 방향이 흔들렸습니다')
+        from .tracking.pupil3d import relative_angles
+        relative_angles(center, center)  # Validate the reference before saving it.
+        self.neutral_direction = center.tolist()
 
     def analyze(self, jpg):
         if self.reset_pending:
@@ -100,20 +131,28 @@ class Runtime:
         if jpg is not None:
             self.jpg = jpg
         confidence = result.get('confidence', 0.) if result else 0.
+        self.detection_quality = float(confidence)
+        self.pupil_detected = bool(result and result.get('pupil_ellipse'))
+        self.pupil_candidate = result.get('pupil_ellipse') if result else None
+        self.tracker_details = result.get('tracker_details', {}) if result else dict(getattr(self.tracker, 'metadata', {}))
         direction = result.get('direction') if result else None
         if (not direction or len(direction) != 3 or not np.isfinite(direction).all()
                 or confidence < self.config['confidence'] or not result.get('pupil_ellipse')):
             self.raw = self.direction = self.origin = self.pupil = self.xy = None
             self.confidence = 0.
             self.filter.reset()
-            self.error = '동공 검출 실패 또는 낮은 품질'
+            self.error = ('동공 후보 없음' if not self.pupil_detected else
+                          f'동공 후보 품질 부족 ({confidence:.2f} / 기준 {self.config["confidence"]:.2f})' if confidence < self.config['confidence'] else
+                          (result.get('tracker_error') or '동공 후보 검출; 시선 방향 계산 실패'))
             return
         self.raw = [direction[0], direction[1]]
         self.direction, self.origin = direction, result.get('origin')
         self.pupil = result['pupil_ellipse']
         self.confidence = confidence
-        self.ready = bool(result.get('ready', len(self.tracker.model_centers) >= 30
-                                     and self.tracker.max_observed_distance > 0)) if self.tracker else result.get('ready', False)
+        self.ready = bool(result['ready']) if 'ready' in result else bool(
+            self.tracker and len(getattr(self.tracker, 'model_centers', [])) >= 30
+            and getattr(self.tracker, 'max_observed_distance', 0) > 0)
+        self.direction_history.append((now, direction))
         self.error = None
         if self.collecting is not None:
             self.collecting.append(self.raw.copy())
@@ -181,8 +220,12 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
 
     async def exhibition_info(request):
         local(request)
-        from .startup import server_settings
-        return web.json_response(server_settings())
+        from .startup import server_settings, lan_address
+        address = await asyncio.to_thread(lan_address)
+        address = None if address == 'Mac의LAN주소' else address
+        return web.json_response(dict(server_settings(), lan_address=address, players=[
+            {'user_id': user, 'receiver_url': f'ws://{address}:{port}/camera' if address else None}
+            for user, port in ((1, 8080), (2, 8081))]))
 
     async def peer(request):
         # Only a fixed local worker and a small management allowlist are reachable.
@@ -197,7 +240,8 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
         target = f'http://127.0.0.1:{peer_port}'
         try:
             async with ClientSession(timeout=ClientTimeout(total=4)) as session:
-                async with session.request(request.method, target + paths[resource],
+                preview_query = '?overlay=1' if resource == 'preview' and request.query.get('overlay') == '1' else ''
+                async with session.request(request.method, target + paths[resource] + preview_query,
                                            data=await request.read() if request.method == 'POST' else None,
                                            headers={'Origin': target, 'Content-Type': 'application/json'},
                                            allow_redirects=False) as response:
@@ -263,6 +307,10 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
         times = [t for t in runtime.frame_times if time.monotonic() - t < 2]
         fps = (len(times) - 1) / (times[-1] - times[0]) if len(times) > 1 else 0.
         return web.json_response(dict(runtime.packet(), simulate=simulate, calibration_points=len(runtime.points),
+                                      pupil_detected=runtime.pupil_detected and time.monotonic() - runtime.received < .35,
+                                      detection_quality=runtime.detection_quality,
+                                      tracker_details=runtime.tracker_details,
+                                      neutral_set=runtime.neutral_direction is not None,
                                       subscribers=len(runtime.clients), processing_ms=runtime.processing_ms,
                                       processing_fps=round(fps, 1), calibrating=runtime.calibrating))
 
@@ -270,7 +318,24 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
         local(request)
         if runtime.jpg is None or time.monotonic() - runtime.received > .35:
             raise web.HTTPServiceUnavailable(text='최신 영상 없음')
-        return web.Response(body=runtime.jpg, content_type='image/jpeg')
+        jpg = runtime.jpg
+        if request.query.get('overlay') == '1':
+            image = cv2.imdecode(np.frombuffer(jpg, np.uint8), cv2.IMREAD_COLOR)
+            if image is None:
+                raise web.HTTPServiceUnavailable(text='영상 디코딩 실패')
+            image = cv2.resize(image, (640, 480))
+            if config['flip']:
+                image = cv2.flip(image, -1)
+            pupil = runtime.pupil_candidate
+            if pupil:
+                color = (80, 230, 80) if runtime.detection_quality >= config['confidence'] else (0, 180, 255)
+                ellipse = (tuple(pupil['center']), tuple(pupil['axes']), pupil['angle_degrees'])
+                cv2.ellipse(image, ellipse, color, 2)
+                cv2.drawMarker(image, tuple(int(v) for v in pupil['center']), color, cv2.MARKER_CROSS, 12, 1)
+            ok, encoded = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if ok:
+                jpg = encoded.tobytes()
+        return web.Response(body=jpg, content_type='image/jpeg')
 
     async def camera(request):
         if simulate:
@@ -349,6 +414,10 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
         if not isinstance(data, dict):
             raise ValueError('JSON 객체를 입력하세요')
         action = data['action']
+        if action == 'neutral':
+            async with runtime.lock:
+                runtime.set_neutral()
+            return web.json_response({'neutral_set': True})
         session = runtime.session
         if action in ('reset', 'begin', 'cancel'):
             async with runtime.lock:
@@ -445,11 +514,18 @@ def main():
     parser.add_argument('--port', type=int, default=8080)
     parser.add_argument('--simulate', action='store_true', help='마우스 입력으로 API/보정 테스트 (실제 시선 아님)')
     parser.add_argument('--worker', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--tracker', choices=('orlosky', 'pupil'), default=os.environ.get('EYE_TRACKER', 'orlosky'))
+    parser.add_argument('--focal-length-px', type=float, default=os.environ.get('EYE_FOCAL_LENGTH_PX', '560'), help='640px 작업 영상의 초점거리 (기본값은 미측정 추정)')
+    parser.add_argument('--intrinsics-measured', action='store_true', default=os.environ.get('EYE_INTRINSICS_MEASURED') == '1')
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
     if not args.worker:
         print(f'사용자 {args.user_id} Mac 운영 화면: http://localhost:{args.port}')
-    web.run_app(create_app(args.config, args.simulate, user_id=args.user_id), host=args.host, port=args.port,
+    tracker = None
+    if args.tracker == 'pupil' and not args.simulate:
+        from .tracking.pupil3d import PupilTracker
+        tracker = PupilTracker(load_tracker(), number(args.focal_length_px, 100, 3000), args.intrinsics_measured)
+    web.run_app(create_app(args.config, args.simulate, tracker=tracker, user_id=args.user_id), host=args.host, port=args.port,
                 access_log=None, print=None if args.worker else print)
 
 

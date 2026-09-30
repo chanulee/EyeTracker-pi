@@ -1,5 +1,7 @@
 # 전시용 Eye Cursor — 사용자 2명 / Pi 2대 / Mac mini 1대
 
+단안·아래쪽 카메라의 **Pupil Labs 3D 방향 실험**은 `bash start-pupil.sh`로 실행합니다. 이 Mac에 별도 실행 환경을 설치했고, 관리자에 동공 타원·카메라 기준 단위 벡터·정면 기준 상대 각도를 표시합니다. [3D 실험 실행 안내](exhibition/docs/PUPIL3D_KO.md)를 참고하세요. 화면 시선 보정과 방향 정확도·지속 24 FPS 검증은 별도입니다.
+
 현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash start-mac.sh`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](exhibition/docs/MAC_MINI_KO.md)에 있습니다.
 
 저장소는 **`exhibition/` — 현재 전시에 필요한 모든 것**, **`legacy/` — 현재 전시에서 사용하지 않는 원본 실험과 이전 데모**로 나뉩니다. 루트 `start-mac.sh`는 Mac 실행 진입점입니다. [문서 목록](exhibition/docs/README.md)과 [폴더 이동표](exhibition/docs/REPOSITORY_KO.md)를 참고하세요.
@@ -122,7 +124,7 @@ const stops = [1, 2].map(userId => connectGaze(
 .venv/bin/python -m unittest discover -s exhibition/tests -v
 ```
 
-전시 코드, 알고리즘, 예전 실험을 폴더별로 정리했습니다. [기존 학생 MJPEG/Windows 데모](legacy/docs/LEGACY_PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대·GC0308 두 대·전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 시작값은 각 Pi 320×240 / 20 FPS / JPEG 품질 65이고, 무선 혼잡이나 Mac 부하가 크면 각 Pi 설정에서 FPS·품질을 낮춰 확인하세요.
+전시 코드, 알고리즘, 예전 실험을 폴더별로 정리했습니다. [기존 학생 MJPEG/Windows 데모](legacy/docs/LEGACY_PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대와 전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 기본 요청은 각 Pi 320×240 / 20 FPS입니다. Pi는 카메라 MJPEG 직송을 우선 시도해 계산량을 줄이고, 미지원 시 JPEG 품질 65로 인코딩합니다. 24 FPS 목표 운용은 카메라가 지원하는 30 FPS 모드를 확인한 뒤 Pi 최대 FPS를 30으로 설정하고 실제 캡처·출력·Mac 수신 FPS를 비교하세요. [근접 추적·착용 보정·24 FPS 개발안](exhibition/docs/TRACKING_DESIGN_KO.md)에 조사 결과와 구현 상태를 정리했습니다.
 
 단일 사용자 개발은 명시적으로 `--single-user`를 사용합니다.
 
@@ -143,3 +145,24 @@ bash start-mac.sh
 기본 시작은 1P·2P 처리 서버와 별도 예시 작품 서버를 켭니다. 준비가 완료되면 Pi별 LAN 수신 주소, 통합 관리자, 작품 URL과 두 시선 구독 주소를 한 번에 출력합니다. 관리자 기본 브라우저 자동 열기를 끄려면 `--no-open`, 가상 입력은 `--simulate`를 추가합니다. `--two-users`도 기존 명령과 호환됩니다. Ctrl+C는 두 처리 서버와 내장 예시 작품 서버를 함께 종료합니다.
 
 예시 작품 주소는 `http://localhost:5173`입니다. 화면 파일 `exhibition/frontend-example/index.html`을 바꾸면 다른 처리 코드를 수정할 필요가 없습니다. 별도 프론트엔드 개발 서버로 교체하려면 `bash start-mac.sh --frontend-url http://localhost:5173`을 사용합니다. 이때 내장 예시는 실행하지 않고 해당 주소를 안내합니다. 별도 작품 서버는 작품 담당자가 실행합니다. 지정 주소는 로컬 `exhibition/server-config.json`에 저장됩니다. 내장 예시로 복귀할 때는 `bash start-mac.sh --frontend-url ''`를 사용합니다.
+
+## 토큰·Mac 주소·Pi 업데이트
+
+Pi가 Mac에 영상을 보낼 때 사용하는 이름은 **Pi 영상 전송 토큰**으로 통일합니다. 작품 프론트엔드가 좌표를 받을 때는 별도의 **작품 시선 구독 토큰**을 사용합니다. Mac 토큰은 최초 생성 후 사용자별 `exhibition/mac-config.json`, `exhibition/mac-user2-config.json`에 저장되므로 Mac/Pi 재부팅, 서버 재시작, 새 관람객 보정이나 일반 코드 업데이트로 바뀌지 않습니다. 해당 Mac 설정을 삭제하거나 다른 설정 파일로 새 서버를 만들면 토큰이 새로 생성됩니다. Pi에 저장한 토큰도 `exhibition/pi-config.json`에 유지됩니다. 보정 상태는 토큰과 달리 서버 재시작·Pi 재연결 후 초기화됩니다.
+
+관리자 카드의 **Pi에 입력할 영상 수신 주소**가 실제 Mac LAN IP를 자동 감지해 표시하며 복사 버튼이 있습니다. 페이지는 30초마다 주소를 다시 확인합니다. `0.0.0.0`은 서버가 모든 인터페이스에서 연결을 받는 바인딩 주소로, Pi에 입력할 Mac 주소가 아닙니다. LAN IP는 공유기나 네트워크가 바뀌면 달라질 수 있으므로 관리자에 표시된 주소를 다시 저장하세요. DHCP 예약을 사용하면 주소를 유지하기 쉽습니다. 자동 감지가 실패하면 Mac의 네트워크 설정에서 실제 IP를 확인합니다.
+
+Pi 업데이트는 SSH로 Pi에 접속한 상태에서 최초 설치와 같은 명령을 다시 실행할 수 있습니다. 최신 GitHub main으로 fast-forward 업데이트하고 필요한 의존성 설치와 서비스를 재시작합니다. 저장된 토큰과 UI 비밀번호 등 로컬 설정은 유지합니다. 수정 중인 코드가 있거나 main이 아닌 경우에는 덮어쓰지 않고 중단합니다.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chanulee/EyeTracker-pi/main/install.sh -o /tmp/eye-install.sh && bash /tmp/eye-install.sh
+```
+
+이번 변경을 GitHub에 올려 설치한 이후에는 아래 전용 업데이트 진입점도 같은 작업을 합니다.
+
+```bash
+cd ~/EyeTracker-pi
+bash exhibition/scripts/update-pi.sh
+```
+
+Mac 코드는 해당 Mac 저장소를 업데이트한 후 compute server를 Ctrl+C로 종료하고 `bash start-mac.sh`로 다시 시작합니다. 전시 운용 중 업데이트하면 연결과 보정이 초기화되므로 새로 보정합니다.
