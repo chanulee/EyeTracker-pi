@@ -2,8 +2,6 @@ import cv2
 import random
 import math
 import numpy as np
-import tkinter as tk
-from tkinter import ttk, filedialog
 
 try:
     import gl_sphere
@@ -11,6 +9,9 @@ try:
 except ImportError:
     GL_SPHERE_AVAILABLE = False
     print("gl_sphere module not found. OpenGL rendering will be disabled.")
+
+DISPLAY_ENABLED = True  # Set False for the headless Mac server.
+WRITE_GAZE_FILE = True  # Legacy Unity output; disabled by the Mac server.
 
 ray_lines = []  # Store recent pupil ellipse rays
 model_centers = []  # Store recent estimated eye centers
@@ -64,7 +65,7 @@ def crop_to_aspect_ratio(image, width=640, height=480):
 
 # Apply thresholding to an image
 def apply_binary_threshold(image, darkestPixelValue, addedThreshold):
-    threshold = darkestPixelValue + addedThreshold
+    threshold = int(darkestPixelValue) + addedThreshold
     _, thresholded_image = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY_INV)
     return thresholded_image
 
@@ -89,7 +90,7 @@ def get_darkest_area(image):
                 for dx in range(0, searchArea, internalSkipSize):
                     if x + dx >= gray.shape[1]:
                         break
-                    current_sum += gray[y + dy][x + dx]
+                    current_sum += int(gray[y + dy][x + dx])
                     num_pixels += 1
 
             if current_sum < min_sum and num_pixels > 0:
@@ -402,7 +403,7 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     
     final_rotated_rect = None
 
-    if final_contours and not isinstance(final_contours[0], list) and len(final_contours[0] > 5):
+    if final_contours and not isinstance(final_contours[0], list) and len(final_contours[0]) > 5:
         ellipse = cv2.fitEllipse(final_contours[0])
         final_rotated_rect = ellipse
 
@@ -453,7 +454,15 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         } if final_rotated_rect is not None else None,
         "eye_center": [int(model_center_average[0]), int(model_center_average[1])],
         "sphere_radius": float(max_observed_distance),
+        "confidence": float(best_ratio_under_ellipse),
     }
+
+    if not DISPLAY_ENABLED:
+        center, direction = compute_gaze_vector(center_x, center_y, *model_center_average)
+        if center is not None and direction is not None:
+            last_tracking_result["origin"] = center.tolist()
+            last_tracking_result["direction"] = direction.tolist()
+        return final_rotated_rect
 
     # Draw reference lines/ellipses
     cv2.circle(frame, model_center_average, int(max_observed_distance), (255, 50, 50), 2)  # Draw eye sphere (circle)
@@ -497,7 +506,7 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
         cv2.imshow("Best Thresholded Image Contours on Frame", frame)
 
 
-    if GL_SPHERE_AVAILABLE:
+    if DISPLAY_ENABLED and GL_SPHERE_AVAILABLE:
         gl_image = gl_sphere.update_sphere_rotation(center_x, center_y, model_center_average[0], model_center_average[1])
     #cv2.circle(frame, (center_x, center_y), 22, (255, 255, 0), -1)  # Draw intersection center
 
@@ -511,6 +520,8 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     center, direction = compute_gaze_vector(center_x, center_y, model_center_average[0], model_center_average[1])
 
     if center is not None and direction is not None:
+        last_tracking_result["origin"] = center.tolist()
+        last_tracking_result["direction"] = direction.tolist()
         origin_text = f"Origin: ({center[0]:.2f}, {center[1]:.2f}, {center[2]:.2f})"
         dir_text    = f"Direction: ({direction[0]:.2f}, {direction[1]:.2f}, {direction[2]:.2f})"
 
@@ -531,9 +542,10 @@ def process_frames(thresholded_image_strict, thresholded_image_medium, threshold
     cv2.putText(frame, ratio_text, (12, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 4)
     cv2.putText(frame, ratio_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    cv2.imshow("Frame with Ellipse and Rays", frame)
+    if DISPLAY_ENABLED:
+        cv2.imshow("Frame with Ellipse and Rays", frame)
 
-    if GL_SPHERE_AVAILABLE:
+    if DISPLAY_ENABLED and GL_SPHERE_AVAILABLE:
         if gl_image is not None:
             blended = cv2.addWeighted(frame, 0.6, gl_image, 0.4, 0)
             cv2.imshow("Eye Tracker + Sphere", blended)
@@ -811,7 +823,7 @@ def compute_gaze_vector(x, y, center_x, center_y, screen_width=640, screen_heigh
     rotation_axis = np.cross(circle_local_center, target_direction)
     rotation_axis_norm = np.linalg.norm(rotation_axis)
     if rotation_axis_norm < 1e-6:
-        return sphere_center, circle_local_center
+        return sphere_center, target_direction
 
     rotation_axis /= rotation_axis_norm
     dot = np.dot(circle_local_center, target_direction)
@@ -844,6 +856,9 @@ def compute_gaze_vector(x, y, center_x, center_y, screen_width=640, screen_heigh
                 return True
         except IOError:
             return False
+
+    if not WRITE_GAZE_FILE:
+        return sphere_center, gaze_rotated
 
     if is_file_available(file_path):
         try:
@@ -945,6 +960,7 @@ def process_camera():
 
 # Process a selected video file
 def process_video():
+    from tkinter import filedialog
     video_path = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4;*.avi")])
 
     if not video_path:
@@ -978,6 +994,8 @@ def process_video():
 
 # GUI for selecting camera or video
 def selection_gui():
+    import tkinter as tk
+    from tkinter import ttk
     global selected_camera
     cameras = detect_cameras()
 

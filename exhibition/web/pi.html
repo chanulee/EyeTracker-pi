@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eye Pi 설정</title>
+<style>
+body{font:16px system-ui;background:#151b25;color:#eaf0fa;max-width:700px;margin:40px auto;padding:20px}label{display:block;margin:14px 0}input{box-sizing:border-box;width:100%;padding:10px;font:inherit}input[type=checkbox]{width:auto}button{padding:12px;font:inherit;cursor:pointer}img{width:320px;max-width:100%}pre{white-space:pre-wrap}a{color:#9dc9ff}
+</style>
+<h1>Eye Pi 설정</h1><p>Pi에서 브라우저를 열 필요 없이 이 화면에서 Mac 수신 주소를 저장하세요.</p>
+<form id="settings">
+<label>Mac 수신 WebSocket 주소<input name="receiver" required placeholder="ws://mac-mini.local:8080/camera"></label>
+<label>Mac 연결 토큰<input name="token" type="password" required minlength="16" autocomplete="off"></label>
+<label>USB 카메라 번호 (/dev/video0 → 0)<input name="camera" type="number" min="0" max="20" required></label>
+<label>영상 너비<input name="width" type="number" min="160" max="640" required></label>
+<label>영상 높이<input name="height" type="number" min="120" max="480" required></label>
+<label>최대 FPS<input name="fps" type="number" min="1" max="30" required></label>
+<label>JPEG 품질<input name="quality" type="number" min="30" max="90" required></label>
+<label><input name="flip" type="checkbox"> 영상을 180° 회전</label>
+<button>저장하고 다시 연결</button></form>
+<p id="message" role="status"></p><h2>상태</h2><pre id="status"></pre>
+<img id="preview" alt="USB 눈 카메라 미리보기">
+<script>
+const form=document.querySelector('form'), message=document.querySelector('#message');
+async function request(path, options) {
+ const response=await fetch(path, options);
+ if(!response.ok) throw Error(await response.text());
+ return response.json();
+}
+request('/api/config').then(data=>{
+ for(const [key,value] of Object.entries(data)) {
+  const input=form.elements.namedItem(key);
+  if(input) input.type==='checkbox'?input.checked=value:input.value=value;
+ }
+}).catch(error=>message.textContent=error.message);
+form.onsubmit=async event=>{
+ event.preventDefault(); const data={};
+ for(const input of form.querySelectorAll('input')) data[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
+ try{await request('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});message.textContent='저장했습니다. 자동으로 재연결합니다.';}
+ catch(error){message.textContent=error.message;}
+};
+let previewBusy=false;
+const preview=document.querySelector('#preview');
+preview.onload=preview.onerror=()=>previewBusy=false;
+setInterval(()=>{
+ request('/api/status').then(data=>{document.querySelector('h1').textContent='Eye Pi · '+data.hostname;document.title='Eye Pi · '+data.hostname;document.querySelector('#status').textContent=JSON.stringify(data,null,2);}).catch(error=>message.textContent=error.message);
+ if(!previewBusy){previewBusy=true;preview.src='/preview.jpg?t='+Date.now();}
+},1000);
+</script></html>

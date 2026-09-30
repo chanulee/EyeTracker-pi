@@ -1,3 +1,5 @@
+> **이 문서는 기존 학생 MJPEG/Windows 데모입니다.** 새 Pi Zero 2 W → Mac mini WebSocket 구성은 [한국어 운영 매뉴얼](docs/SETUP_KO.md)을 사용하세요. 기존 파일은 참고용으로 유지합니다.
+
 # Raspberry Pi Eye Tracker Test Demo
 
 This project uses the 3D eye tracker from [JEOresearch/EyeTracker](https://github.com/JEOresearch/EyeTracker), with a Raspberry Pi as a wireless eye camera.

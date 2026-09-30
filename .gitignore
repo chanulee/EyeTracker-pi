@@ -1,3 +1,7 @@
 venv/
 __pycache__/
 gaze_vector.txt
+.venv/
+.venv-pi/
+exhibition/*-config.json
+exhibition/*-config.tmp
