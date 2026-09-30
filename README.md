@@ -1,5 +1,9 @@
 # 전시용 Eye Cursor — 사용자 2명 / Pi 2대 / Mac mini 1대
 
+현재 전시용 Mac에는 실행 환경이 설치되어 있습니다. 저장소 루트에서 `bash scripts/start-mac.sh --two-users`를 실행하고 [통합 관리자](http://localhost:8080/admin)를 엽니다. Pi 연결과 관람객 보정은 별도로 진행합니다. 이 Mac의 설치 상태와 시작·종료 방법은 [Mac mini 안내](docs/MAC_MINI_KO.md)에 있습니다.
+
+전시 소프트웨어는 `exhibition/`, 눈 추출 알고리즘은 `tracking/`, 실행 명령은 `scripts/`, 문서는 `docs/`, 예전 실험은 `legacy/`, 테스트 영상은 `assets/`에 있습니다. [문서 목록](docs/README.md)과 [폴더 이동표](docs/REPOSITORY_KO.md)를 참고하세요.
+
 관람객마다 **Pi Zero 2 W + USB/UVC GC0308 눈 카메라 한 세트**를 사용합니다. Pi 두 대가 같은 전시 네트워크를 통해 Mac mini 한 대에 영상을 보내고, Mac이 사용자별 눈 방향·캘리브레이션·좌표 안정화를 처리합니다. 웹 작품은 두 사용자의 좌표를 각각 구독합니다.
 
 ```text
@@ -9,6 +13,10 @@
 ```
 
 Mac 서버를 사용자별로 따로 실행하므로 눈 모델, 보정값, 필터, 연결 토큰, 관람객 세션이 분리됩니다. **1번 관람객을 새로 보정하거나 Pi 1번이 끊겨도 2번 보정값은 유지됩니다.** 두 Pi를 같은 수신 포트에 연결하면 두 번째 연결은 거부됩니다.
+
+전시 운영자는 **[통합 관리자](http://localhost:8080/admin)**에서 두 사용자의 눈 영상, 동공 추출, 모델 준비, 보정 여부, Pi 연결, 처리 FPS/시간과 시선 구독 수를 함께 확인합니다. Mac mini는 하나의 compute server 역할을 하며, 내부적으로 독립된 1P/2P 처리 프로세스를 실행합니다. 별도 개발하는 작품 프론트엔드는 두 좌표 스트림을 받아 **같은 화면 전체에 두 커서**를 표시합니다. 사용자 번호가 화면의 왼쪽/오른쪽 영역을 뜻하지 않습니다.
+
+**[두 커서 확인 화면](http://localhost:8080/stage)**은 하늘색 1P, 주황색 2P가 하나의 화면을 사용하는 연결 확인용 페이지입니다. 최종 작품을 대신하지 않습니다. 두 사용자의 보정은 기존 8080/8081 운영 화면에서 차례로 진행합니다.
 
 ## 1. Pi 두 대 준비
 
@@ -32,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/chanulee/EyeTracker-pi/main/install
 
 ## 2. Mac mini에서 두 사용자 서버 시작
 
-저장소 루트에서 실행합니다. Python 3.10 이상이 필요하며 첫 실행 때 필요한 라이브러리를 설치합니다. 기존 단일 사용자 서버가 실행 중이면 먼저 종료해 8080/8081 포트를 비워주세요.
+저장소 루트에서 실행합니다. Python 3.10 이상이 필요하며 새 Mac에서는 첫 실행 때 필요한 라이브러리를 설치합니다. 현재 전시용 Mac의 `.venv`에는 이미 설치되어 있습니다. 기존 단일 사용자 서버가 실행 중이면 먼저 종료해 8080/8081 포트를 비워주세요.
 
 ```bash
 bash scripts/start-mac.sh --two-users
@@ -80,9 +88,9 @@ Pi에 저장하는 Mac 주소는 Pi에서 접근 가능한 Wi-Fi IP나 hostname�
 
 ## 5. 웹 담당 학생에게 전달할 내용
 
-**두 Mac 운영 화면 모두** 설정에 작품의 Origin을 등록합니다. 예: `http://localhost:5173`. 각 WebSocket의 메시지에는 `user_id:1` 또는 `user_id:2`가 있습니다. 다른 컴퓨터에서 웹 작품을 실행하면 `localhost` 대신 Mac의 LAN 주소를 사용합니다.
+**두 Mac 운영 화면 모두** 설정에 작품의 Origin을 등록합니다. 통합 관리자에서도 1P·2P 카드에 각각 저장할 수 있습니다. 예: `http://localhost:5173`. 각 WebSocket의 메시지에는 `user_id:1` 또는 `user_id:2`가 있습니다. 다른 컴퓨터에서 웹 작품을 실행하면 `localhost` 대신 Mac의 LAN 주소를 사용합니다.
 
-[공통 클라이언트](exhibition/web/gaze-client.js)를 웹 프로젝트로 복사해 두 번 연결하세요.
+[공통 클라이언트](exhibition/web/gaze-client.js)를 웹 프로젝트로 복사해 두 번 연결하세요. 아래 예제는 구독 토큰 요구를 끈 기본 설정입니다. 토큰 요구를 켜면 [토큰 전달 예제](docs/FRONTEND_KO.md#통합-관리자와-1p--2p-구독-토큰)처럼 네 번째 인자로 사용자별 시선 구독 토큰을 전달합니다. Pi 영상 전송 토큰은 작품에 전달하지 않습니다.
 
 ```javascript
 import { connectGaze } from './gaze-client.js';
@@ -108,12 +116,13 @@ const stops = [1, 2].map(userId => connectGaze(
 - [Pi 설치 / 자동실행 / Mac 운영 매뉴얼](docs/SETUP_KO.md)
 - [웹 프론트엔드 학생 전달 매뉴얼 / 메시지 계약](docs/FRONTEND_KO.md)
 - [폴더별 역할 / 원본과 학생 변경 정리](docs/REPOSITORY_KO.md)
+- [이 전시용 Mac mini의 설치 상태 / 실행 방법](docs/MAC_MINI_KO.md)
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-기존 파일은 삭제하거나 이동하지 않고 보존했습니다. [기존 학생 MJPEG/Windows 데모](PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대·GC0308 두 대·전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 시작값은 각 Pi 320×240 / 20 FPS / JPEG 품질 65이고, 무선 혼잡이나 Mac 부하가 크면 각 Pi 설정에서 FPS·품질을 낮춰 확인하세요.
+전시 코드, 알고리즘, 예전 실험을 폴더별로 정리했습니다. [기존 학생 MJPEG/Windows 데모](docs/LEGACY_PI_DEMO.md)는 새 WebSocket 운영 경로와 별개입니다. **실제 Pi 두 대·GC0308 두 대·전시장 Wi-Fi에서 동시 FPS, 지연, 보정 정확도, 재부팅을 검증해야 합니다.** 시작값은 각 Pi 320×240 / 20 FPS / JPEG 품질 65이고, 무선 혼잡이나 Mac 부하가 크면 각 Pi 설정에서 FPS·품질을 낮춰 확인하세요.
 
 단일 사용자 개발·기존 사용법도 유지합니다.
 
@@ -122,47 +131,4 @@ bash scripts/start-mac.sh
 bash scripts/start-mac.sh --simulate
 ```
 
----
-
-## 원본 프로젝트 설명 (보존)
-
-**Raspberry Pi gaze cursor demo:** see [PI_DEMO.md](PI_DEMO.md)
-
-# EyeTracker
-
-A lightweight, robust 3D eye tracker in Python
-
-This repository is an open-source 3D eye tracking algorithm written in Python. Currently, it is an updated version of the pupil tracker from https://github.com/YutaItoh/3D-Eye-Tracker/blob/master/main/pupilFitter.h that has been optimized, simplified, and improved upon.
-
-To use the script, run "python .\OrloskyPupilDetector.py" from your shell. If the hardcoded file path in the select_video() function does not find a video at the specified path, it will open a browse window that allows you to select a video. The process_video() function handles the majority of the processing and can be easily modified to work with a camera capture or image. It returns a rotated_rect that represents the pupil ellipse. A lite version is also included that is more efficient, but less robust. Be sure to have an adequate light source for the lite version.
-
-A test video (eye_test.mp4) is included in the root directory for testing. Algorithm details are explained here: https://www.youtube.com/watch?v=bL92JUBG8xw
-
-When running the script on this test video, your results should look like this: https://youtu.be/B06cUMplDHw.
-
-If you need an eye camera with custome LEDs, I have instructions for building your own IR camera for under $100 here: https://www.youtube.com/watch?v=8lZqCMRMtC8
-Alternatively, there is a small $17 IR camera that works well with some modification: https://amzn.to/41x8p2W
-
-To help support this software and other open-source projects, please consider subscribing to my YouTube channel: https://www.youtube.com/@jeoresearch, or joining for $1 per month: https://www.youtube.com/@jeoresearch/join.
-
-Other useful tools/supplies
-
-- GC0308 Camera (~$20): https://amzn.to/41x8p2W (price may vary)
-- LEDs for Spinel ($8): https://amzn.to/41rEwAS
-- USB Extension cable x2 ($8): https://amzn.to/4knyf1N (for extending GC0308 cable)
-
-As an Amazon Associate, I earn from qualifying purchases at no extra cost to you.
-
-Requirements:
-
-- A Python environment
-
-Packages
-
-- numpy \*\*\*\*There is a known issue with numpy 2.0.0. Downgrading to 1.26.0 or another version can solve this issue.
-- opencv
-
-Assumptions
-
-- Works best with 640x480 videos. Images will be cropped to size equally horizontally/vertically if aspect ratio is not 4:3.
-- The image must be that of the entire eye. Dark regions in the corners of the image (e.g. VR display lens borders) should be cropped.
+원본 프로젝트 소개와 크레딧은 [원본 안내](docs/UPSTREAM.md)에 보존했습니다.

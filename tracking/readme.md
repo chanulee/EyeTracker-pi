@@ -1,3 +1,7 @@
+# 눈 추출 알고리즘 및 기존 데모
+
+전시 서버는 이 폴더의 `Orlosky3DEyeTracker.py`를 GUI 없이 불러옵니다. 직접 실행하는 GUI, 양안 트래커, OpenGL, Unity 및 SSE 데모는 참고용입니다. 전시 실행은 [README](../README.md)의 Mac 시작 명령을 사용하세요. 양안 추적은 한 사람의 두 눈이며, 전시의 1P·2P 두 사용자 처리와는 별개입니다.
+
 This project provides a real-time 3D eye tracking system using a near-eye infrared camera, OpenCV, and optional OpenGL visualization. It detects the pupil in each frame, fits an ellipse to estimate eye orientation, and projects a 3D gaze direction vector from the user's eye center through the pupil.
 
 Use Orlosky3DEyeTracker.py for single-eye tracking or Orlosky3DEyeTrackerStereo.py for simultaneous left- and right-eye tracking. The optional gl_sphere.py module provides a render of the 3D sphere. In the GUI that runs with the application, you’ll be prompted to select a camera stream or video file. The main display shows the detected pupil and 3D origin and direction vector. If gl_sphere is available, a 3D model will be rendered in a separate OpenGL window. A video with DIY tracking glasses and sample output can be found here: https://youtu.be/zuoOvywtwtA

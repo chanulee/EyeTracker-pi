@@ -1,10 +1,12 @@
 // Reconnecting client. All coordinates are calibrated by the Mac server.
-export function connectGaze(url, onGaze, onStatus = () => {}) {
+export function connectGaze(url, onGaze, onStatus = () => {}, options = {}) {
+  const endpoint = new URL(url, location.href);
+  if (options.token) endpoint.searchParams.set('token', options.token);
   let ws, timer, watchdog, userId = null, sessionId = null, stopped = false;
   const invalid = () => onGaze({type: 'gaze', version: 1, user_id: userId, session_id: sessionId, valid: false, x: null, y: null});
   function connect() {
     if (stopped) return;
-    ws = new WebSocket(url);
+    ws = new WebSocket(endpoint);
     ws.onopen = () => onStatus('connected');
     ws.onmessage = ({data}) => {
       try {

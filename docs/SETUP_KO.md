@@ -29,7 +29,7 @@ GitHub에 올리기 전 로컬 수정본을 바로 설치해야 한다면, Mac�
 ```bash
 ssh <사용자>@eye-pi.local 'mkdir -p ~/EyeTracker-pi'
 COPYFILE_DISABLE=1 tar --exclude=.git --exclude=.venv --exclude=.venv-pi \
-  --exclude=__pycache__ --exclude='*-config.json' --exclude=eye_test.mp4 -czf - . \
+  --exclude=__pycache__ --exclude='*-config.json' --exclude=assets/eye_test.mp4 -czf - . \
   | ssh <사용자>@eye-pi.local 'tar -xzf - -C ~/EyeTracker-pi'
 ssh -t <사용자>@eye-pi.local 'cd ~/EyeTracker-pi && bash scripts/install-pi.sh'
 ```
@@ -150,14 +150,14 @@ Mac 중지는 Ctrl+C. Pi 자동실행 중지는 `sudo systemctl disable --now ey
 
 ## 개발 검증 기록 (2026-09-30)
 
-Mac 환경 Python 3.13.5 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 아래 7개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
+현재 전시용 Mac 환경 Python 3.12.14 / aiohttp 3.14.3 / NumPy 2.5.3 / OpenCV 4.14.0에서 총 13개 자동 검사가 통과했습니다. 추가로 Python 컴파일, JavaScript 구문, 셸 스크립트 구문을 확인했고 Mac 브라우저에서 프로토타입 화면과 서버 연결을 확인했습니다.
 
 ```bash
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
 - 9점 보정 수학, 잘못된 보정 입력 거부, 중앙값/시간 필터
-- 포함된 `eye_test.mp4`의 실제 트래커 추론 (GUI 호출 없이), 빈 영상 검출 실패
+- 포함된 `assets/eye_test.mp4`의 실제 트래커 추론 (GUI 호출 없이), 빈 영상 검출 실패
 - Origin/관리 API 보호, 입력 검증, 설정 저장 권한
 - 시뮬레이션 입력으로 9점 수집→중앙 검증→좌표 출력→stale 무효화→관람객 초기화
 - 실제 JPEG WebSocket 수신/ACK, 잘못된 JPEG 무효화, 중복 카메라 거부, 연결 종료 초기화
@@ -169,3 +169,11 @@ Pi OS 패키지 설치와 systemd 부팅은 이 Mac에서 실행하지 않았습
 추가로 `tests/test_install.py`에서 Git 다운로드/재설치, 설정 유지, 기존 파일·수정 코드 보호, 다운로드 실패 처리와 root 실행 거부를 검사했습니다. 이 검사는 git/설치 명령을 대체해 실행하므로 실제 Pi 패키지 설치 결과를 의미하지 않습니다.
 
 두 사용자 확장 검사에서는 8080/8081에 해당하는 독립 앱의 좌표·토큰·세션·트래커 상태를 확인하고, 사용자 1 초기화/연결 종료 후 사용자 2 상태가 유지되는 것을 검증했습니다. 시작 스크립트의 두 사용자 프로세스 인자와 함께 종료되는 동작도 검사했습니다. 실제 두 Pi의 무선 동시 운용은 현장 검증 대상입니다.
+
+## 통합 전시 운영 화면
+
+두 사용자 서버를 시작한 뒤 이 Mac mini에서 `http://localhost:8080/admin`을 엽니다. 1P와 2P의 눈 영상, 동공 추출, 눈 모델 준비, 개인별 보정, 연결 상태와 처리 성능을 함께 확인합니다. “새 관람객”은 해당 사용자의 모델과 보정만 초기화합니다. “보정 화면”으로 이동해 작품 디스플레이에서 순서대로 보정하고, `http://localhost:8080/stage`에서 두 커서가 같은 화면 전체를 사용하는지 확인합니다. 실제 작품도 보정할 때와 같은 브라우저 뷰포트 크기와 디스플레이 위치로 실행합니다.
+
+각 Pi에는 해당 사용자 카드의 **Pi 영상 전송 토큰**을 저장합니다. 별도 작품에는 **작품 시선 구독 토큰**을 전달합니다. “작품 구독에 토큰 요구”를 사용할 때는 학생에게 새 공통 클라이언트와 토큰 전달 예제를 함께 전달하세요. 관리자에서 작품 Origin을 두 사용자 모두에 저장합니다. 이 관리자와 확인 페이지는 Mac localhost 전용입니다. Mac의 OS Wi-Fi 설정, 절전 해제, 로그인 시 서버 자동 실행은 현재 자동화하지 않습니다. 전시 중에는 Mac이 잠자기에 들어가지 않도록 설정하고 서버 터미널을 유지하세요.
+
+통합 관리자 추가 검사에서는 관리 페이지의 localhost 보호, 고정된 2P 서버 중계, 1P 초기화와 2P 초기화의 분리, 서버 연결 실패 표시를 검증합니다. 구독 토큰 검사는 영상 전송 토큰으로 작품 구독이 불가능한지, 시선 구독 토큰이 필요한 설정에서 인증이 적용되는지, 인증 설정 변경 시 기존 구독이 종료되는지 확인합니다. 폴더 정리 이후에도 `tracking/`의 실제 알고리즘과 `assets/eye_test.mp4`로 동일한 회귀 검사를 실행합니다.

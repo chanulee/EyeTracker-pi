@@ -89,3 +89,39 @@ const disconnect = connectGaze('ws://localhost:8080/gaze', gaze => {
 이 프로토타입은 같은 Wi-Fi에서 로컬 HTTP 프론트엔드를 실행하는 구성을 제공합니다. 공개 HTTPS 웹페이지에서 로컬 `ws://`를 여는 구성은 브라우저의 mixed-content/로컬 네트워크 정책에 의해 제한될 수 있습니다. 공개 배포가 필요하면 Mac 서버 앞에 신뢰 가능한 TLS 역방향 프록시를 두고 `/gaze`를 WSS로 제공하거나, 로컬에서 작품을 HTTP로 실행하세요. Pi `/camera`도 원격 네트워크라면 WSS가 필요합니다. 현재 TLS·공개 사이트 호스팅·외부 프록시는 설치 스크립트 범위에 포함하지 않습니다. Origin 허용은 인증 수단이 아니므로 불특정 네트워크에 좌표 API를 공개하지 마세요.
 
 실행 예제는 [프로토타입](../exhibition/web/index.html), 재접속/무응답 처리는 [공통 클라이언트](../exhibition/web/gaze-client.js)를 참고하세요. WebSocket HTTP 서버 구현은 [aiohttp 공식 문서](https://docs.aiohttp.org/en/stable/web_quickstart.html)를 따릅니다.
+
+## 통합 관리자와 1P / 2P 구독 토큰
+
+Mac mini의 `http://localhost:8080/admin`에서 두 사용자의 상태와 연결 설정을 관리합니다. 영상 전송 토큰(`token`)은 Pi에만 저장합니다. 별도 시선 구독 토큰(`gaze_token`)은 작품 프론트엔드에 전달합니다. 관리자에서 사용자별로 “작품 구독에 토큰 요구”를 켜면 `/gaze?token=시선구독토큰`만 허용합니다. 기본값은 꺼짐이므로 기존 작품과 호환됩니다. Origin 허용 설정은 토큰 사용 여부와 관계없이 필요합니다. 인증 설정이 변경되면 기존 구독은 끊기고 클라이언트가 재접속합니다.
+
+아래처럼 공통 클라이언트의 네 번째 인자로 토큰을 전달합니다. 작품에는 Pi 토큰이나 `/api/config` 접근을 넣지 않습니다. 관리자에게 받은 시선 구독 토큰을 작품의 로컬 설정으로 전달하세요. 예제 문자열은 실제 토큰으로 바꿉니다. 토큰을 공개 저장소에 커밋하지 않습니다.
+
+```javascript
+import { connectGaze } from './gaze-client.js';
+
+const tokens = { 1: '1P 시선 구독 토큰', 2: '2P 시선 구독 토큰' };
+const cursors = { 1: document.querySelector('#cursor1'), 2: document.querySelector('#cursor2') };
+const sessions = {};
+const stops = [1, 2].map(id => connectGaze(
+  `ws://localhost:${id === 1 ? 8080 : 8081}/gaze`,
+  gaze => {
+    if (sessions[id] !== gaze.session_id) {
+      sessions[id] = gaze.session_id;
+      resetDwell(id); // 작품에서 구현: 이 사용자의 선택 누적을 초기화
+    }
+    const cursor = cursors[id];
+    cursor.hidden = !gaze.valid;
+    if (!gaze.valid) { resetDwell(id); return; }
+    // 두 사용자 모두 같은 뷰포트 전체를 사용합니다.
+    cursor.style.left = `${gaze.x * innerWidth}px`;
+    cursor.style.top = `${gaze.y * innerHeight}px`;
+  },
+  status => console.log(`${id}P`, status),
+  { token: tokens[id] }
+));
+// 종료 시 stops.forEach(stop => stop());
+```
+
+두 커서에 `position:fixed; pointer-events:none; transform:translate(-50%,-50%)`를 적용하고 색/1P·2P 라벨로 구분하세요. 시선이 끊긴 사용자의 커서만 숨기고 그 사용자의 선택 누적만 초기화합니다. 확인용 `http://localhost:8080/stage`가 같은 방식으로 두 좌표를 표시합니다. 2P 서버는 이 확인 화면의 로컬 Origin `http://localhost:8080`을 허용합니다. 별도 작품 Origin은 두 사용자 설정에 등록해야 합니다.
+
+추가 localhost 관리자 경로는 `/admin`, `/stage`, `/api/player2/status`, `/api/player2/config`, `/api/player2/preview`, `/api/player2/calibration`입니다. 1P 서버가 고정된 로컬 8081 포트의 2P 상태를 중계합니다. LAN에서는 이 관리 경로를 사용할 수 없습니다. `/api/status`는 `subscribers`, `processing_fps`, `processing_ms`, `calibrating`도 제공합니다. FPS는 최근 2초 내 최대 60개 처리 프레임의 간격으로 계산하고, 처리 시간은 JPEG 해독과 추론을 포함합니다. Wi-Fi RSSI와 촬영부터 화면 표시까지의 지연은 측정하지 않습니다. 시뮬레이션에서는 눈 영상과 실제 추론 처리 시간이 없습니다.

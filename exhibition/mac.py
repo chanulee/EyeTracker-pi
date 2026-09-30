@@ -8,9 +8,10 @@ import logging
 from pathlib import Path
 import secrets
 import time
+from collections import deque
 from urllib.parse import urlsplit
 
-from aiohttp import web, WSMsgType
+from aiohttp import web, WSMsgType, ClientSession, ClientTimeout, ClientError
 import cv2
 import numpy as np
 
@@ -20,11 +21,11 @@ from .gaze import POINTS, Stabilizer, fit_calibration, predict
 RUNTIME_KEY = web.AppKey('runtime', object)
 HERE = Path(__file__).parent
 LOG = logging.getLogger('eye-mac')
-DEFAULTS = dict(token='', allowed_origins=[], smoothing_ms=80, max_speed=4., confidence=.65, flip=False)
+DEFAULTS = dict(token='', gaze_token='', require_gaze_token=False, allowed_origins=[], smoothing_ms=80, max_speed=4., confidence=.65, flip=False)
 
 
 def load_tracker():
-    path = HERE.parent / '3DTracker' / 'Orlosky3DEyeTracker.py'
+    path = HERE.parent / 'tracking' / 'Orlosky3DEyeTracker.py'
     spec = importlib.util.spec_from_file_location('orlosky', path)
     tracker = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tracker)
@@ -46,6 +47,8 @@ class Runtime:
         self.jpg = None
         self.received = 0.
         self.seq = 0
+        self.frame_times = deque(maxlen=60)
+        self.processing_ms = None
         self.error = 'Pi 연결 대기'
         self.reset()
 
@@ -92,6 +95,7 @@ class Runtime:
         now = time.monotonic()
         self.received = now
         self.seq += 1
+        self.frame_times.append(now)
         if jpg is not None:
             self.jpg = jpg
         confidence = result.get('confidence', 0.) if result else 0.
@@ -134,10 +138,11 @@ class Runtime:
         return median.tolist()
 
 
-def create_app(config_path, simulate=False, tracker=None, user_id=1):
+def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8081):
     config = load_config(config_path, DEFAULTS)
-    if not config['token']:
-        config['token'] = secrets.token_urlsafe(32)
+    if not config['token'] or not config['gaze_token']:
+        config['token'] = config['token'] or secrets.token_urlsafe(32)
+        config['gaze_token'] = config['gaze_token'] or secrets.token_urlsafe(32)
         save_config(config_path, config)
     runtime = Runtime(config, tracker if tracker is not None else (None if simulate else load_tracker()), user_id)
 
@@ -165,6 +170,36 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1):
         local(request)
         return web.FileResponse(HERE / 'web' / 'index.html')
 
+    async def admin(request):
+        local(request)
+        return web.FileResponse(HERE / 'web' / 'admin.html')
+
+    async def stage(request):
+        local(request)
+        return web.FileResponse(HERE / 'web' / 'stage.html')
+
+    async def peer(request):
+        # Only a fixed local worker and a small management allowlist are reachable.
+        local(request)
+        if runtime.user_id != 1:
+            raise web.HTTPNotFound()
+        resource = request.match_info['resource']
+        paths = {'status': '/api/status', 'config': '/api/config', 'preview': '/preview.jpg',
+                 'calibration': '/api/calibration'}
+        if resource not in paths or (request.method == 'POST' and resource not in ('config', 'calibration')):
+            raise web.HTTPNotFound()
+        target = f'http://127.0.0.1:{peer_port}'
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=4)) as session:
+                async with session.request(request.method, target + paths[resource],
+                                           data=await request.read() if request.method == 'POST' else None,
+                                           headers={'Origin': target, 'Content-Type': 'application/json'},
+                                           allow_redirects=False) as response:
+                    return web.Response(status=response.status, body=await response.read(),
+                                        content_type=response.content_type)
+        except (ClientError, asyncio.TimeoutError):
+            raise web.HTTPServiceUnavailable(text='2P 서버 연결 실패. --two-users로 시작했는지 확인하세요')
+
     async def client(request):
         return web.FileResponse(HERE / 'web' / 'gaze-client.js')
 
@@ -177,9 +212,13 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1):
         data = await request.json()
         if not isinstance(data, dict):
             raise ValueError('JSON 객체를 입력하세요')
-        if set(data) - {'allowed_origins', 'smoothing_ms', 'max_speed', 'confidence', 'flip'}:
+        if set(data) - {'allowed_origins', 'smoothing_ms', 'max_speed', 'confidence', 'flip', 'require_gaze_token'}:
             raise ValueError('알 수 없는 설정')
         result = dict(config)
+        if 'require_gaze_token' in data:
+            if not isinstance(data['require_gaze_token'], bool):
+                raise ValueError('require_gaze_token은 boolean이어야 합니다')
+            result['require_gaze_token'] = data['require_gaze_token']
         for key, bounds in dict(smoothing_ms=(10, 500), max_speed=(.1, 20), confidence=(.1, 1)).items():
             if key in data:
                 result[key] = number(data[key], *bounds)
@@ -201,17 +240,25 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1):
                 _ = parsed.port
             result['allowed_origins'] = origins
         save_config(config_path, result)
+        token_policy_changed = result['require_gaze_token'] != config['require_gaze_token']
         async with runtime.lock:
             geometry_changed = result['flip'] != config['flip'] or result['confidence'] != config['confidence']
             config.update(result)
             if geometry_changed:
                 runtime.reset()
             runtime.filter.reset()
+        if token_policy_changed:
+            for ws in list(runtime.clients):
+                await ws.close(code=1008, message=b'Subscription policy changed')
         return web.json_response({'saved': True})
 
     async def status(request):
         local(request)
-        return web.json_response(dict(runtime.packet(), simulate=simulate, calibration_points=len(runtime.points)))
+        times = [t for t in runtime.frame_times if time.monotonic() - t < 2]
+        fps = (len(times) - 1) / (times[-1] - times[0]) if len(times) > 1 else 0.
+        return web.json_response(dict(runtime.packet(), simulate=simulate, calibration_points=len(runtime.points),
+                                      subscribers=len(runtime.clients), processing_ms=runtime.processing_ms,
+                                      processing_fps=round(fps, 1), calibrating=runtime.calibrating))
 
     async def preview(request):
         local(request)
@@ -236,7 +283,9 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1):
                 if msg.type == WSMsgType.BINARY:
                     async with runtime.lock:
                         try:
+                            started = time.monotonic()
                             result = await asyncio.to_thread(runtime.analyze, msg.data)
+                            runtime.processing_ms = round((time.monotonic() - started) * 1000, 1)
                             runtime.accept(result, msg.data)
                         except (ValueError, cv2.error, ArithmeticError) as error:
                             LOG.warning('Tracker frame rejected: %s', error)
@@ -253,9 +302,14 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1):
         return ws
 
     async def gaze(request):
+        if config['require_gaze_token'] and not hmac.compare_digest(request.query.get('token', ''), config['gaze_token']):
+            raise web.HTTPUnauthorized(text='시선 구독 토큰이 필요합니다')
         origin = request.headers.get('Origin')
         own = f'{request.scheme}://{request.host}'
-        if origin not in config['allowed_origins']:
+        local_stage = (runtime.user_id == 2 and request.remote in ('127.0.0.1', '::1')
+                       and urlsplit(own).hostname in ('localhost', '127.0.0.1', '::1')
+                       and origin == 'http://localhost:8080')
+        if origin not in config['allowed_origins'] and not local_stage:
             if (origin != own or request.remote not in ('127.0.0.1', '::1')
                     or urlsplit(own).hostname not in ('localhost', '127.0.0.1', '::1')):
                 raise web.HTTPForbidden(text='Mac 설정에 프론트엔드 Origin을 등록하세요')
@@ -367,7 +421,9 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1):
             await runtime.receiver.close()
 
     app.cleanup_ctx.append(lifecycle)
-    app.add_routes([web.get('/', page), web.get('/gaze-client.js', client), web.get('/api/config', settings),
+    app.add_routes([web.get('/', page), web.get('/admin', admin), web.get('/stage', stage),
+                    web.get('/api/player2/{resource}', peer), web.post('/api/player2/{resource}', peer),
+                    web.get('/gaze-client.js', client), web.get('/api/config', settings),
                     web.post('/api/config', update), web.get('/api/status', status), web.get('/preview.jpg', preview),
                     web.get('/camera', camera), web.get('/gaze', gaze), web.post('/api/calibration', calibration),
                     web.post('/api/demo', demo)])

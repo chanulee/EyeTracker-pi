@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EyeTracker · 전시 관리자</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101720;color:#edf3fa;font:16px system-ui}header,main{max-width:1280px;margin:auto;padding:24px}header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}h1{font-size:26px;margin:0}h2{margin:0}a{color:#9fd0ff}button,input,textarea{font:inherit}button,.link{background:#253b50;color:#fff;border:1px solid #54718a;border-radius:8px;padding:10px 14px;cursor:pointer}main{padding-top:0}.flow{color:#b5c7d8;margin-bottom:24px}.players{display:grid;grid-template-columns:1fr 1fr;gap:24px}.player{border:1px solid #34485e;border-radius:16px;padding:24px;background:#192432}.heading{display:flex;justify-content:space-between;align-items:center}.badge{color:#ffce87}.preview{width:100%;aspect-ratio:4/3;object-fit:contain;background:#0b1118;border-radius:10px;margin:20px 0}dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 20px}dt{color:#aac0d4}dd{margin:0;text-align:right}label{display:block;margin:16px 0}input:not([type=checkbox]),textarea{width:100%;padding:10px;border:1px solid #4c6580;border-radius:6px;background:#0f1924;color:#fff}textarea{min-height:90px}code{overflow-wrap:anywhere;color:#bcd9ee}.actions{display:flex;flex-wrap:wrap;gap:10px}.message{min-height:24px;color:#ffce87}small{color:#aac0d4}details{margin-top:20px}summary{cursor:pointer}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #ffce87}@media(max-width:800px){.players{grid-template-columns:1fr}}
+</style>
+<header><div><h1>전시 관리자</h1><p>Mac mini compute server · 1P / 2P</p></div><a class="link" href="/stage" target="_blank" rel="noopener">두 커서 확인 화면 열기 ↗</a></header>
+<main><p class="flow">Pi 눈 카메라 → Mac 동공·시선 추출 / 개인별 보정 → 별도 작품 프론트엔드</p><p>보정은 작품과 같은 디스플레이에서 1P, 2P 순서로 진행하세요. 보정 화면을 연 뒤 같은 창 크기를 유지하세요.</p><div class="players" id="players"></div><p><small>연결 상태는 Pi→Mac의 영상 수신과 프론트엔드 구독 상태입니다. FPS와 처리 시간은 Mac에서 측정하며 Wi-Fi 신호 세기나 전체 촬영 지연을 뜻하지 않습니다.</small></p></main>
+<script type="module">
+const root=document.getElementById('players');
+async function api(id,resource,data){
+ const path=id===1?resource==='preview'?'/preview.jpg':`/api/${resource}`:`/api/player2/${resource}`;
+ const response=await fetch(path,data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ if(!response.ok)throw Error(await response.text());return response.json();
+}
+function make(id){
+ const el=document.createElement('section');el.className='player';
+ el.innerHTML=`<div class="heading"><h2>${id}P</h2><span class="badge" role="status">서버 확인 중</span></div>
+ <img class="preview" alt="${id}P 눈 카메라 미리보기" hidden>
+ <dl><dt>카메라 / 네트워크</dt><dd data-field="camera">—</dd><dt>동공 추출</dt><dd data-field="tracking">—</dd><dt>눈 모델</dt><dd data-field="ready">—</dd><dt>개인별 보정</dt><dd data-field="calibration">—</dd><dt>현재 좌표</dt><dd data-field="xy">—</dd><dt>처리 FPS / 시간</dt><dd data-field="performance">—</dd><dt>마지막 처리 후 경과</dt><dd data-field="age">—</dd><dt>시선 구독 연결 수</dt><dd data-field="subscribers">—</dd></dl>
+ <div class="actions"><a class="link" href="http://localhost:${id===1?8080:8081}/" target="_blank" rel="noopener">${id}P 보정 화면 ↗</a><button class="reset">새 관람객</button></div>
+ <p class="message" role="status"></p><details><summary>Pi 토큰 / 프론트엔드 구독 설정</summary>
+ <p>Pi 수신 주소: <code>ws://Mac의LAN주소:${id===1?8080:8081}/camera</code></p>
+ <label>Pi 영상 전송 토큰<input class="camera-token" type="password" readonly></label><button class="copy-camera">Pi 토큰 복사</button>
+ <p>작품 구독 주소: <code>ws://localhost:${id===1?8080:8081}/gaze</code></p>
+ <label>작품 시선 구독 토큰<input class="gaze-token" type="password" readonly></label><button class="copy-gaze">구독 토큰 복사</button>
+ <form><label><input class="require-token" type="checkbox"> 작품 구독에 토큰 요구</label><label>허용할 작품 Origin (한 줄에 하나)<textarea class="origins" placeholder="http://localhost:5173"></textarea></label><button>연결 설정 저장</button></form>
+ <p><small>영상 전송 토큰과 시선 구독 토큰은 서로 다릅니다. 작품에는 시선 구독 토큰만 전달하세요. 토큰 요구 설정을 바꾸면 구독 연결이 재접속됩니다.</small></p></details>`;
+ root.append(el);
+ const q=selector=>el.querySelector(selector), message=q('.message');let configured=false, busy=false, previewBusy=false;
+ for(const name of ['camera','gaze'])q(`.copy-${name}`).onclick=async()=>{try{await navigator.clipboard.writeText(q(`.${name}-token`).value);message.textContent='토큰을 복사했어요';}catch{q(`.${name}-token`).select();message.textContent='선택된 토큰을 복사하세요';}};
+ q('.reset').onclick=async()=>{try{await api(id,'calibration',{action:'reset'});message.textContent='이전 보정을 지웠어요. 눈 모델 준비 후 보정하세요';}catch(error){message.textContent=error.message;}};
+ q('form').onsubmit=async event=>{event.preventDefault();try{await api(id,'config',{allowed_origins:q('.origins').value.split('\n').map(s=>s.trim()).filter(Boolean),require_gaze_token:q('.require-token').checked});message.textContent='작품 연결 설정을 저장했어요';}catch(error){message.textContent=error.message;}};
+ q('.preview').onload=()=>{previewBusy=false;q('.preview').hidden=false;};q('.preview').onerror=()=>{previewBusy=false;q('.preview').hidden=true;};
+ async function poll(){
+ if(busy)return;busy=true;
+ try{
+ const s=await api(id,'status');
+ q('.badge').textContent=s.simulate?'시뮬레이션':s.valid?'좌표 송출 중':'입력 / 보정 대기';
+ const fields={camera:s.simulate?'가상 입력':s.camera_connected?'Pi 연결됨':'Pi 연결 끊김',tracking:s.tracking?`검출 중 · 품질 ${s.confidence.toFixed(2)}`:'검출 없음',ready:s.ready?'준비 완료':'눈 모델 준비 필요',calibration:s.calibrating?`보정 중 ${s.calibration_points}/9`:s.calibrated?'보정 완료':'미보정',xy:s.valid?`${s.x.toFixed(3)}, ${s.y.toFixed(3)}`:'좌표 무효',performance:`${s.processing_fps} FPS / ${s.processing_ms??'—'} ms`,age:s.frame_age_ms===null?'영상 없음':`${s.frame_age_ms} ms`,subscribers:s.subscribers};
+ for(const [key,value] of Object.entries(fields))q(`[data-field="${key}"]`).textContent=value;
+ if(s.error)q('.badge').textContent=s.error;
+ if(s.camera_connected&&s.frame_age_ms<350&&!previewBusy){previewBusy=true;q('.preview').src=(id===1?'/preview.jpg':'/api/player2/preview')+'?t='+Date.now();}else if(!s.camera_connected||s.frame_age_ms>=350){q('.preview').hidden=true;}
+ if(!configured){const c=await api(id,'config');q('.camera-token').value=c.token;q('.gaze-token').value=c.gaze_token;q('.require-token').checked=c.require_gaze_token;q('.origins').value=c.allowed_origins.join('\n');configured=true;}
+ }catch(error){q('.badge').textContent='서버 연결 실패';for(const dd of el.querySelectorAll('dd'))dd.textContent='—';q('.preview').hidden=true;message.textContent=error.message;}
+ finally{busy=false;}
+ }
+ poll();return setInterval(poll,1000);
+}
+const timers=[make(1),make(2)];addEventListener('pagehide',()=>timers.forEach(clearInterval));
+</script></html>

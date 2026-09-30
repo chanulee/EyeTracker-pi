@@ -5,6 +5,7 @@
 *{box-sizing:border-box}body{margin:0;background:#131b26;color:#edf3fa;font:16px system-ui}header{padding:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;border-bottom:1px solid #3c4d62}h1{font-size:20px;margin:0}button{font:inherit;padding:9px 14px;border:1px solid #8aa5bb;border-radius:6px;background:#24354a;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible{outline:3px solid #ffcc66}main{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:24px;height:65vh}.tile{display:grid;place-items:center;border:2px solid #384f65;border-radius:14px;font-size:30px}.tile.hot{border-color:#ffcc66;background:#324254}.tile.selected{background:#405f45}#cursor{display:none;position:fixed;width:28px;height:28px;border:3px solid #ffcc66;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:4}details{margin:18px;padding:12px;background:#1d2a3a}label{display:block;margin:12px 0}input,textarea{width:100%;padding:8px;font:inherit}input[type=checkbox]{width:auto}form{max-width:650px}#calibration{position:fixed;inset:0;background:#131b26;z-index:10;display:none}#dot{position:absolute;transform:translate(-50%,-50%);width:32px;height:32px;background:#ff6d72;border:5px solid white;border-radius:50%}#instruction{position:absolute;bottom:3%;width:100%;text-align:center;padding:8px}#preview{width:320px;max-width:100%}small{color:#b3c4d7}#state{white-space:pre-wrap;font-size:13px}#result{padding:0 24px}#mode{color:#ffcc66}
 </style>
 <header><h1>Eye cursor</h1><span id="connection" role="status">연결 중</span><span id="mode"></span>
+<a href="http://localhost:8080/admin" style="color:#b3c4d7">통합 관리자</a>
 <button id="fullscreen">전체 화면</button><button id="reset">새 관람객</button><button id="start" disabled>개인별 보정</button></header>
 <p style="padding:0 24px">① 새 관람객 → 눈을 여러 방향으로 천천히 움직여 모델 준비 → ② 전체 화면 → ③ 개인별 보정 → 타일을 1초 바라보기</p>
 <main id="tiles"><button class="tile">1</button><button class="tile">2</button><button class="tile">3</button><button class="tile">4</button></main>
@@ -34,6 +35,7 @@ async function request(path, data) {
 const cal=data=>request('/api/calibration',data);
 $('receiverEndpoint').textContent=`ws://Mac의WiFi주소:${location.port}/camera`;
 $('gazeEndpoint').textContent=`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`;
+const subscription=await request('/api/config');
 connectGaze(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`, data=>{
  latest=data; $('start').disabled=active||!data.ready;
  $('state').textContent=JSON.stringify(data,null,2);
@@ -45,7 +47,7 @@ connectGaze(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`
  }):null;
  if(tile!==hover){hover?.classList.remove('hot');hover=tile;since=performance.now();selected=false;hover?.classList.add('hot');}
  if(hover&&!selected&&performance.now()-since>1000){selected=true;hover.classList.add('selected');$('result').textContent='선택: '+hover.textContent;setTimeout(()=>tile.classList.remove('selected'),400);}
-},status=>$('connection').textContent=({connected:'서버 연결됨',disconnected:'서버 끊김',stale:'데이터 지연'})[status]);
+},status=>$('connection').textContent=({connected:'서버 연결됨',disconnected:'서버 끊김',stale:'데이터 지연'})[status],{token:subscription.gaze_token});
 request('/api/config').then(data=>{
  $('token').value=data.token;
  for(const key of ['smoothing_ms','max_speed','confidence','allowed_origins','flip']){

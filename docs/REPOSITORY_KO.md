@@ -1,35 +1,68 @@
 # 저장소 폴더 안내
 
-기존 파일과 경로를 유지했습니다. Unity 경로·원본 실험 간 import가 깨지지 않도록 기존 소스를 이동하거나 삭제하지 않았습니다. 이번 전시 운영 진입점은 `scripts/`와 `exhibition/`입니다. `scripts/start-mac.sh --two-users`로 Mac의 두 독립 서버(8080/8081)를 시작해 사용자별 모델·보정·토큰을 분리합니다.
+전시 운영 코드는 `exhibition/`, 재사용하는 눈 추출 알고리즘은 `tracking/`, 이전 실험은 `legacy/`에 있습니다. 전시를 실행할 때는 루트에서 `bash scripts/start-mac.sh --two-users`를 사용합니다.
 
-| 위치 | 내용 | 이번 구성에서 사용 |
-|---|---|---|
-| `exhibition/` | 새 Pi WebSocket 송신기, Mac 수신/보정/안정화 서버 | **주 경로** |
-| `exhibition/web/` | Pi 원격 설정 UI, Mac 보정/타일 프로토타입, 프론트엔드 클라이언트 | **주 경로** |
-| `install.sh` | GitHub 다운로드 후 기존 설치 스크립트를 실행하는 진입점 | 새 Pi 한 줄 설치 |
-| `scripts/` | Pi 1회 설치 및 systemd 자동실행, Mac 시작 | **주 경로** |
-| `docs/` | 한국어 설치·운영, 웹 학생 전달 계약, 저장소 지도 | **주 매뉴얼** |
-| `tests/` | 하드웨어 없이 실행 가능한 보정·무효화·API/WebSocket 검사 | 개발 확인 |
-| `3DTracker/` | 원본 단안/양안 3D 눈 모델, 선택적 OpenGL, Unity 출력 | 단안 `Orlosky3DEyeTracker.py` 알고리즘 재사용 |
-| `3DTracker/gaze_cursor_server.py`, `gaze_demo.html` | 학생이 추가한 기존 파일 polling + SSE 커서 데모 | 기존 경로 보존; 새 서버와 별개 |
-| `ForRaspberrypi/` | 학생의 기존 HTTP MJPEG 영상 송신기 | 기존 경로 보존; 새 Pi 송신기와 동시 실행 금지 |
-| `FrontCameraTracker/` | 얼굴 앞 카메라 기반 별도 눈 추적 실험 | 이번 근접 눈 카메라 경로에서 사용하지 않음 |
-| `HeadTracker/` | MediaPipe 얼굴/머리 방향으로 마우스 제어 | 별도 실험; 눈 방향과 구분 |
-| `Webcam3DTracker/` | 일반 웹캠 눈/머리/화면 매핑 프로토타입 | 별도 실험 |
-| `VREyeTracker/` | Unity VR 단안/양안 시각화 및 보정 C# | 별도 Unity 경로 |
-| `OrloskyPupilDetector.py` | 원본 정밀 동공 검출 데모 | 보존 |
-| `OrloskyPupilDetectorLite.py` | 경량 동공 검출 | 보존 |
-| `OrloskyPupilDetectorRaspberryPi.py` | Pi에서 직접 OpenCV 창으로 동공 검출 | 보존; 이번 Pi에는 추론을 실행하지 않음 |
-| `eye_test.mp4` | 원본 검출 시험 영상 | 실제 알고리즘 회귀 확인용 |
-| `PI_DEMO.md` | 학생의 기존 Windows/MJPEG 데모 절차 | 이전 경로의 참고 자료 |
-| `LICENSE` | 기존 MIT 라이선스 | 유지 |
+```text
+EyeTracker-pi/
+├── README.md                 전시 시작 안내
+├── install.sh                새 Pi 설치 진입점
+├── exhibition/               현재 전시 소프트웨어
+│   ├── pi.py                 카메라 캡처·JPEG 전송·Pi 설정 서버
+│   ├── mac.py                사용자별 추론·보정·시선 송출·관리 API
+│   ├── gaze.py               보정 수학과 좌표 안정화
+│   ├── common.py             설정 저장·입력 검증
+│   ├── requirements.txt      Mac 실행 의존성
+│   └── web/
+│       ├── admin.html        1P·2P 통합 관리자
+│       ├── index.html        사용자별 9점 보정·단일 커서 확인
+│       ├── stage.html        같은 화면에 두 커서 확인
+│       ├── pi.html           Pi 원격 설정
+│       └── gaze-client.js    별도 작품 프론트엔드용 구독 클라이언트
+├── tracking/                 Orlosky 눈 추출 알고리즘과 기존 3D 데모
+├── scripts/                  Mac 시작·Pi 설치 스크립트
+├── docs/                     설치·운영·프론트엔드 계약·참고 문서
+├── tests/                    보정·통신·인증·설치 자동 검사
+├── assets/eye_test.mp4        알고리즘 회귀 확인용 영상
+├── legacy/                   현재 전시에서 실행하지 않는 예전 실험
+└── LICENSE                   원본 MIT 라이선스
+```
 
-## 학생이 추가한 기존 변경
+## 전시의 데이터 흐름
 
-현재 checkout에서 `a28d80a` 커밋이 `ForRaspberrypi/pi_camera_stream.py`, `3DTracker/gaze_cursor_server.py`, `3DTracker/gaze_demo.html`, `PI_DEMO.md`를 추가했습니다. 파일 내용 기준 영상은 MJPEG/HTTP, 브라우저 좌표는 SSE, 개인별 모델은 localStorage 저장 방식입니다. 기존 서버의 Pi 주소가 하드코딩되어 있어 새 구성은 JSON 설정/UI를 사용합니다. 커밋 기록만으로 실제 하드웨어 테스트 결과를 확인할 수는 없습니다.
+1P 카메라와 2P 카메라를 각각 Pi가 촬영합니다. Pi는 추론하지 않고 최신 JPEG를 Mac mini로 보냅니다. Mac mini는 독립된 두 처리 프로세스에서 동공·3D 방향·개인별 보정·좌표 안정화를 처리합니다. 1P는 8080, 2P는 8081입니다. 별도 작품 프론트엔드가 두 `/gaze` 스트림을 구독하고 같은 화면 전체에 두 커서를 표시합니다.
 
-## 이번 원본 알고리즘 수정
+통합 관리자 `http://localhost:8080/admin`는 1P 서버에서 제공하며 2P의 고정 localhost 8081 관리 API를 중계합니다. 각 사용자의 눈 모델·보정·토큰·관람객 세션은 분리됩니다. 관리자 페이지 자체는 Mac localhost 전용입니다. 작품은 관리자 HTML에 구현하지 않고 별도 프로젝트에서 개발합니다.
 
-`3DTracker/Orlosky3DEyeTracker.py`만 공용 알고리즘으로 사용합니다. GUI 실행 시 기존 동작을 유지하면서, 새 Mac 서버가 화면 표시/파일 쓰기를 끄고 결과 딕셔너리에서 동공 품질·3D 방향을 읽을 수 있게 했습니다. Tkinter는 GUI를 실행할 때만 불러옵니다. 필터링된 contour 길이 조건과 정반대 방향 반환도 바로잡았습니다. NumPy 2에서 픽셀 밝기 합과 threshold 계산이 uint8 범위를 넘어 잘못되는 문제는 Python 정수로 계산해 수정했습니다. 별도의 동공 검출 알고리즘 복사본은 만들지 않았습니다.
+## tracking과 legacy의 구분
 
-다른 실험의 의존성은 전시 경로와 다릅니다. MediaPipe·PyAutoGUI·PyOpenGL·Tkinter 등을 새 전시 설치에 한꺼번에 설치하지 않습니다. 사용하려는 실험 폴더의 기존 readme를 먼저 확인하세요.
+`tracking/Orlosky3DEyeTracker.py`는 전시 서버에서 실제로 사용하는 공용 알고리즘입니다. GUI와 파일 출력을 끄고 동공 타원·품질·추정 방향을 결과 딕셔너리로 받습니다. Tkinter는 GUI 실행 때만 불러옵니다. NumPy 2의 uint8 연산 문제와 contour 조건 등을 수정한 코드입니다.
+
+같은 폴더의 `Orlosky3DEyeTrackerStereo.py`, `gl_sphere.py`, `GazeFollower.cs`는 기존 양안·OpenGL·Unity 참고 구현입니다. `gaze_cursor_server.py`, `gaze_demo.html`은 학생의 이전 SSE 데모이며 새 WebSocket 전시 서버와 별개입니다. 기존 데모의 파일 간 위치 관계를 유지하기 위해 이 파일들은 알고리즘 폴더에 함께 보존했습니다. [이전 Pi 데모 안내](LEGACY_PI_DEMO.md)를 참고하세요.
+
+| legacy 경로 | 용도 |
+|---|---|
+| `legacy/ForRaspberrypi/` | 이전 HTTP MJPEG 카메라 송신기 |
+| `legacy/FrontCameraTracker/` | 얼굴 앞 카메라 기반 눈 추적 실험 |
+| `legacy/HeadTracker/` | MediaPipe 머리 방향·마우스 제어 실험 |
+| `legacy/Webcam3DTracker/` | 일반 웹캠 화면 매핑 실험 |
+| `legacy/VREyeTracker/` | Unity VR 시각화와 보정 C# |
+| `legacy/pupil-detectors/` | 정밀·경량·Pi 직접 실행 동공 검출 데모 |
+
+MediaPipe·PyAutoGUI·PyOpenGL 등의 실험 의존성은 전시 설치에 포함하지 않습니다. 예전 카메라 송신기를 현재 `exhibition.pi`와 동시에 실행하면 카메라 장치를 충돌해 사용할 수 있습니다.
+
+## 이전 경로에서 이동한 위치
+
+| 이전 경로 | 현재 경로 |
+|---|---|
+| `3DTracker/` | `tracking/` |
+| `ForRaspberrypi/`, `FrontCameraTracker/`, `HeadTracker/`, `Webcam3DTracker/`, `VREyeTracker/` | 각각 `legacy/` 아래 |
+| 루트 `OrloskyPupilDetector*.py` | `legacy/pupil-detectors/` |
+| 루트 `eye_test.mp4` | `assets/eye_test.mp4` |
+| 루트 `PI_DEMO.md` | `docs/LEGACY_PI_DEMO.md` |
+| README의 원본 소개 | `docs/UPSTREAM.md` |
+
+Mac 알고리즘 로더와 자동 검사의 영상 경로도 새 위치를 사용합니다. 외부에서 예전 경로로 실행하던 단축 명령이나 IDE 설정은 새 경로로 바꿔야 합니다. Unity의 gaze 파일 위치는 원래부터 각 설치 환경의 절대 경로를 지정하는 방식입니다.
+
+## 로컬 환경 파일
+
+`.venv/`는 Mac 실행 환경이며 Git에서 제외됩니다. `exhibition/mac-config.json`, `exhibition/mac-user2-config.json`, `exhibition/pi-config.json`은 자동 생성되는 로컬 설정으로, 비밀번호·토큰이 있으므로 커밋하지 않습니다. Mac 보정은 메모리에만 유지합니다. 서버 재시작이나 Pi 재연결 후 해당 사용자를 다시 보정합니다.

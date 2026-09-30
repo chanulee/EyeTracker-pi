@@ -43,7 +43,7 @@ class MathCheck(unittest.TestCase):
     def test_real_tracker_headless_video(self):
         tracker = load_tracker()
         tracker.reset_tracking_state()
-        capture = cv2.VideoCapture(str(Path(__file__).resolve().parents[1] / 'eye_test.mp4'))
+        capture = cv2.VideoCapture(str(Path(__file__).resolve().parents[1] / 'assets' / 'eye_test.mp4'))
         count = 0
         try:
             # GUI and legacy file output must not be needed for the production path.
@@ -134,6 +134,58 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.post('/api/calibration', {'action': 'begin'})).status, 400)
         self.assertEqual((await self.post('/api/demo', {'x': float('nan'), 'y': 0})).status, 400)
 
+    async def test_subscription_token_and_local_dashboard(self):
+        self.assertEqual((await self.client.get('/admin')).status, 200)
+        self.assertEqual((await self.client.get('/admin', headers={'Host': 'evil.example'})).status, 403)
+        ws = await self.client.ws_connect('/gaze', headers={'Origin': self.origin})
+        await ws.receive_json()
+        self.assertEqual((await self.post('/api/config', {'require_gaze_token': True})).status, 200)
+        self.assertEqual((await ws.receive()).type, aiohttp.WSMsgType.CLOSE)
+        await ws.close()
+        for token in ('', self.runtime.config['token']):
+            with self.assertRaises(aiohttp.WSServerHandshakeError) as error:
+                await self.client.ws_connect('/gaze', params={'token': token}, headers={'Origin': self.origin})
+            self.assertEqual(error.exception.status, 401)
+        ws = await self.client.ws_connect('/gaze', params={'token': self.runtime.config['gaze_token']},
+                                          headers={'Origin': self.origin})
+        await ws.receive_json()
+        status = await (await self.client.get('/api/status')).json()
+        self.assertEqual(status['subscribers'], 1)
+        await ws.close()
+
+    async def test_dashboard_peer_proxy_and_player_isolation(self):
+        peer = TestClient(TestServer(create_app(Path(self.tmp.name) / 'peer.json', simulate=True, user_id=2)))
+        await peer.start_server()
+        dashboard = TestClient(TestServer(create_app(Path(self.tmp.name) / 'dashboard.json', simulate=True,
+                                                     peer_port=peer.server.port)))
+        await dashboard.start_server()
+        origin = str(dashboard.make_url('')).rstrip('/')
+        try:
+            peer_runtime = peer.app[RUNTIME_KEY]
+            status = await (await dashboard.get('/api/player2/status')).json()
+            self.assertEqual(status['user_id'], 2)
+            config = await (await dashboard.get('/api/player2/config')).json()
+            self.assertEqual(config['gaze_token'], peer_runtime.config['gaze_token'])
+            before = dashboard.app[RUNTIME_KEY].session
+            peer_before = peer_runtime.session
+            response = await dashboard.post('/api/player2/calibration', json={'action': 'reset'},
+                                             headers={'Origin': origin})
+            self.assertEqual(response.status, 200)
+            self.assertNotEqual(peer_before, peer_runtime.session)
+            self.assertEqual(before, dashboard.app[RUNTIME_KEY].session)
+            self.assertEqual((await dashboard.post('/api/player2/config', json={})).status, 403)
+            self.assertEqual((await dashboard.get('/api/player2/config', headers={'Host': 'evil.example'})).status, 403)
+            self.assertEqual((await dashboard.get('/api/player2/unknown')).status, 404)
+            self.assertEqual((await dashboard.post('/api/player2/status', json={}, headers={'Origin': origin})).status, 404)
+            ws = await peer.ws_connect('/gaze', headers={'Origin': 'http://localhost:8080'})
+            self.assertEqual((await ws.receive_json())['user_id'], 2)
+            await ws.close()
+            await peer.close()
+            self.assertEqual((await dashboard.get('/api/player2/status')).status, 503)
+        finally:
+            await dashboard.close()
+            await peer.close()
+
     async def test_jpeg_camera_ack_and_disconnect(self):
         app = create_app(Path(self.tmp.name) / 'real.json')
         client = TestClient(TestServer(app))
@@ -146,7 +198,7 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
             ws = await client.ws_connect('/camera', headers={'Authorization': 'Bearer ' + token})
             with self.assertRaises(aiohttp.WSServerHandshakeError):
                 await client.ws_connect('/camera', headers={'Authorization': 'Bearer ' + token})
-            capture = cv2.VideoCapture('eye_test.mp4')
+            capture = cv2.VideoCapture(str(Path(__file__).resolve().parents[1] / 'assets' / 'eye_test.mp4'))
             ok, frame = capture.read()
             capture.release()
             self.assertTrue(ok)
@@ -171,7 +223,7 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
         mac_client = TestClient(TestServer(create_app(Path(self.tmp.name) / 'receiver.json')))
         await mac_client.start_server()
         runtime = mac_client.app[RUNTIME_KEY]
-        capture = cv2.VideoCapture('eye_test.mp4')
+        capture = cv2.VideoCapture(str(Path(__file__).resolve().parents[1] / 'assets' / 'eye_test.mp4'))
         ok, frame = capture.read()
         capture.release()
         self.assertTrue(ok)
@@ -247,7 +299,7 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
         await first.start_server()
         await second.start_server()
         one, two = first.app[RUNTIME_KEY], second.app[RUNTIME_KEY]
-        capture = cv2.VideoCapture('eye_test.mp4')
+        capture = cv2.VideoCapture(str(Path(__file__).resolve().parents[1] / 'assets' / 'eye_test.mp4'))
         ok, frame = capture.read()
         capture.release()
         self.assertTrue(ok)

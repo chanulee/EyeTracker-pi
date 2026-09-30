@@ -1,3 +1,5 @@
+현재 저장소의 Python 트래커는 [tracking/Orlosky3DEyeTracker.py](../../tracking/Orlosky3DEyeTracker.py)에 있습니다. 아래 원본 설명의 GitHub 링크는 원본 프로젝트를 가리킵니다.
+
 # Unity VR Gaze Visualizer and Calibration Scripts
 
 These Unity C# scripts visualize 3D gaze rays produced by the external Python eye tracker, [Orlosky3DEyeTracker.py](https://github.com/JEOresearch/EyeTracker/blob/main/3DTracker/Orlosky3DEyeTracker.py). The Python tracker continuously writes gaze origins and directions to a text file, which the Unity component reads in real time.
