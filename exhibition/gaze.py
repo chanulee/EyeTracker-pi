@@ -4,6 +4,7 @@ import math
 import numpy as np
 
 POINTS = [(x, y) for y in (.1, .5, .9) for x in (.1, .5, .9)]
+VALIDATION_POINTS = [(.3, .35), (.7, .65), (.5, .5)]
 
 
 def features(points):

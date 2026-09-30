@@ -58,6 +58,39 @@ class MathCheck(unittest.TestCase):
         self.assertEqual(camera.snapshot()[1][1], jpg)
         self.assertEqual(camera.diagnostics()['transport_mode'], 'camera-mjpeg')
         self.assertEqual(capture_settings(PI_DEFAULTS), capture_settings(dict(PI_DEFAULTS, token='new', receiver='ws://other/camera')))
+        self.assertEqual(capture_settings(PI_DEFAULTS), capture_settings(dict(PI_DEFAULTS, quality=40)))
+
+    def test_camera_quality_applies_without_reopening(self):
+        camera = Camera(dict(PI_DEFAULTS, transport='decoded'))
+        qualities = []
+        encode = cv2.imencode
+
+        class Capture:
+            def set(self, key, value):
+                return True
+            def get(self, key):
+                return 30.
+            def isOpened(self):
+                return True
+            def read(self):
+                if qualities:
+                    camera.stop.set()
+                return True, np.full((240, 320, 3), 127, np.uint8)
+            def release(self):
+                pass
+
+        def recording_encoder(extension, frame, options):
+            qualities.append(options[1])
+            camera.config = dict(camera.config, quality=40)
+            return encode(extension, frame, options)
+
+        with patch('exhibition.pi.cv2.VideoCapture', return_value=Capture()) as open_camera, \
+             patch('exhibition.pi.FrameRateGate.accept', return_value=True), \
+             patch('exhibition.pi.cv2.imencode', side_effect=recording_encoder):
+            camera.run()
+        self.assertEqual(qualities, [65, 40])
+        self.assertEqual(camera.sequence, 2)
+        open_camera.assert_called_once()
 
     def test_camera_fps_request_and_native_resolution_diagnostics(self):
         camera = Camera(dict(PI_DEFAULTS, fps=15))
@@ -363,6 +396,17 @@ class NetworkCheck(unittest.IsolatedAsyncioTestCase):
                 await wait_for(lambda: runtime.seq >= 2)
                 self.assertTrue(runtime.packet()['tracking'])
                 previous_session, previous_sequence = runtime.session, runtime.seq
+                inputs = [[(x - .5) * .8, (.5 - y) * .8] for x, y in POINTS]
+                model = runtime.model = fit_calibration(inputs, POINTS)
+                response = await pi_client.post('/api/config', json={'fps': 30, 'quality': 40},
+                    auth=aiohttp.BasicAuth('admin', 'test-password'),
+                    headers={'Origin': str(pi_client.make_url('')).rstrip('/')})
+                self.assertEqual(response.status, 200, await response.text())
+                self.assertFalse((await response.json())['reconnected'])
+                await wait_for(lambda: runtime.seq > previous_sequence + 3)
+                self.assertEqual(runtime.session, previous_session)
+                self.assertIs(runtime.model, model)
+                previous_sequence = runtime.seq
                 await runtime.receiver.close()
                 await wait_for(lambda: runtime.receiver is not None and runtime.session != previous_session
                                and runtime.seq > previous_sequence)

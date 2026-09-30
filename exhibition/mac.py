@@ -17,7 +17,7 @@ import cv2
 import numpy as np
 
 from .common import load_config, number, save_config
-from .gaze import POINTS, Stabilizer, fit_calibration, predict
+from .gaze import POINTS, VALIDATION_POINTS, Stabilizer, fit_calibration, predict
 
 RUNTIME_KEY = web.AppKey('runtime', object)
 HERE = Path(__file__).parent
@@ -58,6 +58,8 @@ class Runtime:
         self.session = secrets.token_hex(8)
         self.model = self.candidate = None
         self.points = []
+        self.validation_errors = []
+        self.calibration_viewport = None
         self.collecting = None
         self.calibrating = False
         self.raw = self.direction = self.origin = self.pupil = self.xy = None
@@ -87,7 +89,8 @@ class Runtime:
                     camera_connected=self.receiver is not None, error=self.error,
                     direction_frame=self.tracker_details.get('direction_frame'),
                     origin_unit=self.tracker_details.get('origin_unit'),
-                    relative_angles=self.angles() if tracking else None)
+                    relative_angles=self.angles() if tracking else None,
+                    calibration_viewport=self.calibration_viewport if self.model else None)
 
     def angles(self):
         if self.direction is None or self.neutral_direction is None:
@@ -310,6 +313,7 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
                                       pupil_detected=runtime.pupil_detected and time.monotonic() - runtime.received < .35,
                                       detection_quality=runtime.detection_quality,
                                       tracker_details=runtime.tracker_details,
+                                      validation_points=len(runtime.validation_errors),
                                       neutral_set=runtime.neutral_direction is not None,
                                       subscribers=len(runtime.clients), processing_ms=runtime.processing_ms,
                                       processing_fps=round(fps, 1), calibrating=runtime.calibrating))
@@ -416,19 +420,30 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
         action = data['action']
         if action == 'neutral':
             async with runtime.lock:
+                if data.get('session_id') and data['session_id'] != runtime.session:
+                    raise ValueError('보정 세션이 만료되었습니다')
                 runtime.set_neutral()
             return web.json_response({'neutral_set': True})
         session = runtime.session
         if action in ('reset', 'begin', 'cancel'):
+            viewport = data.get('viewport')
+            if action == 'begin' and viewport is not None:
+                if not isinstance(viewport, dict) or set(viewport) != {'width', 'height'}:
+                    raise ValueError('화면 너비와 높이를 입력하세요')
+                viewport = {key: number(value, 100, 20000, integer=True) for key, value in viewport.items()}
             async with runtime.lock:
                 if action == 'reset':
                     runtime.reset()
                 elif action == 'cancel':
+                    if data.get('session_id') and data['session_id'] != runtime.session:
+                        raise ValueError('보정 세션이 만료되었습니다')
                     runtime.session = secrets.token_hex(8)  # Invalidate any in-flight capture.
                     runtime.calibrating = False
                     runtime.collecting = None
                     runtime.model = runtime.candidate = None
                     runtime.points = []
+                    runtime.validation_errors = []
+                    runtime.calibration_viewport = None
                     runtime.locked = False
                     runtime.filter.reset()
                 else:
@@ -439,6 +454,8 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
                     runtime.session = secrets.token_hex(8)
                     runtime.calibrating = runtime.locked = True
                     runtime.points = []
+                    runtime.validation_errors = []
+                    runtime.calibration_viewport = viewport
                     runtime.model = runtime.candidate = None
                     runtime.filter.reset()
             return web.json_response({'session_id': runtime.session})
@@ -462,17 +479,32 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
         if action == 'validate':
             if runtime.candidate is None:
                 raise ValueError('9개 지점을 먼저 수집하세요')
+            index = data.get('validation_index')
+            if index is not None:
+                index = number(index, 0, len(VALIDATION_POINTS) - 1, integer=True)
+                if index != len(runtime.validation_errors):
+                    raise ValueError('검증 지점 순서가 맞지 않습니다')
+            target = VALIDATION_POINTS[index] if index is not None else (.5, .5)
             raw = await runtime.capture()
             if session != runtime.session:
                 raise ValueError('보정이 취소되었습니다')
-            error = float(np.linalg.norm(predict(runtime.candidate, raw) - [.5, .5]))
+            error = float(np.linalg.norm(predict(runtime.candidate, raw) - target))
             if error > .12:
-                raise ValueError('중앙 검증 오차가 큽니다. 보정을 다시 시작하세요')
+                raise ValueError('검증 오차가 큽니다. 자세를 고정하고 같은 점을 다시 보세요')
+            if index is not None:
+                runtime.validation_errors.append(error)
+                if index < len(VALIDATION_POINTS) - 1:
+                    return web.json_response({'calibrated': False, 'validation_error': error,
+                                              'validation_collected': len(runtime.validation_errors)})
             runtime.model = runtime.candidate
             runtime.calibrating = False
             runtime.filter.reset()
-            return web.json_response({'calibrated': True, 'validation_error': error})
+            return web.json_response({'calibrated': True, 'validation_error': max(runtime.validation_errors or [error])})
         raise ValueError('알 수 없는 보정 명령')
+
+    async def calibration_plan(request):
+        local(request)
+        return web.json_response({'points': POINTS, 'validation_points': VALIDATION_POINTS})
 
     async def demo(request):
         local(request)
@@ -502,6 +534,7 @@ def create_app(config_path, simulate=False, tracker=None, user_id=1, peer_port=8
                     web.get('/gaze-client.js', client), web.get('/api/config', settings),
                     web.post('/api/config', update), web.get('/api/status', status), web.get('/preview.jpg', preview),
                     web.get('/camera', camera), web.get('/gaze', gaze), web.post('/api/calibration', calibration),
+                    web.get('/api/calibration-plan', calibration_plan),
                     web.post('/api/demo', demo)])
     return app
 

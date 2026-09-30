@@ -5,7 +5,7 @@ Mac에서 영상 처리·개인별 보정·안정화를 끝낸 결과를 WebSock
 ## 연결
 
 1. Mac 서버 실행: `bash start-mac.sh --two-users`. 사용자 1은 8080, 사용자 2는 8081입니다.
-2. `http://localhost:8080`, `http://localhost:8081` 각각에서 해당 관람객의 보정을 완료합니다.
+2. 내장 예시는 `http://localhost:5173`에서 해당 사용자 카드의 보정을 순서대로 완료합니다. 기존 `http://localhost:8080`, `http://localhost:8081` 운영 화면도 사용할 수 있습니다.
 3. **두 Mac 운영 화면 모두** 설정에 프론트엔드 Origin을 정확히 등록합니다. 예: `http://localhost:5173`. 포트까지 같아야 하고 경로/끝 슬래시는 붙이지 않습니다.
 4. 같은 Mac의 프론트엔드: 사용자 1 `ws://localhost:8080/gaze`, 사용자 2 `ws://localhost:8081/gaze`. 다른 기기에서는 localhost를 Mac의 LAN 주소로 바꿉니다. 두 연결을 동시에 구독하는 예시는 [README](../README.md)에 있습니다.
 
@@ -55,7 +55,8 @@ const disconnect = connectGaze('ws://localhost:8080/gaze', gaze => {
 | `valid` | 지금 인터랙션에 써도 되는 화면 좌표. 유일한 선택 허용 기준 |
 | `x/y` | 안정화된 0–1 좌표. (0,0) 왼쪽 위 / (1,1) 오른쪽 아래. 무효면 둘 다 null |
 | `tracking` | 최근 영상에서 유효 동공을 검출. 보정 전에도 true일 수 있음 |
-| `calibrated` | 이번 관람객의 9점 보정과 중앙 검증 완료 |
+| `calibrated` | 이번 관람객의 보정과 검증 완료 (작품은 9점 + 3점, 기존 운영 UI는 중앙 검증) |
+| `calibration_viewport` | 작품에서 보정한 `{width,height}`. 크기가 다르면 커서를 숨기고 다시 보정. 기존 UI는 null |
 | `session_id` | 관람객/보정 세션. 바뀌면 dwell 등 인터랙션 상태 초기화 |
 | `seq` | Mac이 처리한 영상 번호. 서버 수신 이후 기준이며 Pi 캡처 번호가 아님 |
 | `timestamp_ms` | 메시지 생성 시 Mac의 Unix 시각. 카메라 캡처 시각이 아님 |
@@ -72,17 +73,18 @@ const disconnect = connectGaze('ws://localhost:8080/gaze', gaze => {
 
 ## 운영 API (Mac localhost 전용)
 
-프론트엔드는 기본적으로 `/gaze`만 받습니다. 관리/보정은 Mac 운영 화면을 사용하세요. LAN 클라이언트에는 설정 토큰/눈 영상/API를 공개하지 않습니다. POST는 운영 화면과 같은 Origin을 요구합니다.
+외부 프론트엔드는 `/gaze`로 좌표를 받습니다. 내장 예시 작품은 localhost 중계 API로 영상과 보정도 제공합니다. 외부 작품 서버에서 이 흐름을 재사용하려면 고정된 localhost 중계를 별도로 구현하거나 기존 Mac 운영 화면에서 보정하세요. LAN 클라이언트에는 설정 토큰/눈 영상/API를 공개하지 않습니다. POST는 운영 화면과 같은 Origin을 요구합니다.
 
 | 경로 | 기능 |
 |---|---|
-| `GET /api/status` | 상태 및 보정 수집 지점 수 |
+| `GET /api/status` | 상태 및 보정/검증 수집 지점 수 |
+| `GET /api/calibration-plan` | `points` 9개와 `validation_points` 3개의 화면 정규 좌표 |
 | `GET /api/config` / `POST /api/config` | Origin 목록, 안정화, 품질 기준, 회전. POST는 변경할 필드만 전송 |
 | `POST /api/calibration` | 아래 보정 명령 |
 | `GET /preview.jpg` | 최신 눈 JPEG (350ms 이상 오래되면 503) |
 | `POST /api/demo` | `--simulate` 모드에서만 `{x:0..1,y:0..1}` 테스트 입력 |
 
-보정 명령은 JSON입니다. `reset`: 새 관람객/눈 모델 초기화. 눈을 여러 방향으로 움직여 `ready:true`가 되면 `begin`: 눈 모델 고정 + session_id 반환. `sample`은 `index:0..8, session_id`와 함께 호출합니다. 지점 순서는 위쪽 왼쪽→중앙→오른쪽, 가운데 행, 아래 행입니다. 호출 전 대상 점을 보여주고 0.9초 대기하세요. 서버가 호출 후 1.2초 동안 수집합니다. 마지막에는 중앙을 보여주고 같은 방식으로 `validate, session_id`를 호출합니다. `cancel`은 보정/모델을 폐기합니다. 실패는 400과 오류 텍스트이며 같은 지점을 재시도하거나 reset으로 재시작합니다. 같은 사용자의 보정을 중복 진행하지 마세요. 사용자별 보정 상태는 독립적입니다. 한 화면을 공유할 때는 두 관람객의 보정을 순서대로 진행합니다.
+보정 명령은 JSON입니다. `reset`: 새 관람객/눈 모델 초기화. 눈을 여러 방향으로 움직여 `ready:true`가 되면 `begin`: 눈 모델 고정 + session_id 반환. `sample`은 `index:0..8, session_id`와 함께 호출합니다. 지점 순서는 위쪽 왼쪽→중앙→오른쪽, 가운데 행, 아래 행입니다. 호출 전 대상 점을 보여주고 0.9초 대기하세요. 서버가 호출 후 1.2초 동안 수집합니다. 작품은 `begin`에 `viewport:{width:innerWidth,height:innerHeight}`를 함께 보냅니다. Pupil 엔진은 준비 후 중앙을 1.6초 이상 보여주고 `neutral, session_id`로 정면을 저장합니다. 9점 수집 후 계획의 `validation_points`를 차례로 보여주고 `validate, validation_index:0..2, session_id`를 호출합니다. 각 점의 정규 좌표 거리 오차가 0.12 이하여야 하며 마지막 점 통과 시에만 `calibrated:true`입니다. `validation_error`는 세 점의 최대 정규 좌표 거리이며 픽셀/시각각 정확도가 아닙니다. 기존 운영 UI의 `validation_index` 없는 요청은 중앙 한 점 검증을 유지합니다. `cancel`은 보정/화면 모델을 폐기하며 `session_id`를 보내면 만료된 취소 요청을 거부합니다. 실패는 400과 오류 텍스트이며 같은 지점을 재시도하거나 reset으로 재시작합니다. 같은 사용자의 보정을 중복 진행하지 마세요. 사용자별 보정 상태는 독립적입니다. 한 화면을 공유할 때는 두 관람객의 보정을 순서대로 진행합니다.
 
 ## 배포 조건
 

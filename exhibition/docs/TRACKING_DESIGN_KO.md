@@ -1,6 +1,6 @@
 # 근접 눈 영상 추적·보정과 24 FPS 개발안
 
-2026-09-30 조사 및 로컬 검사 기록입니다. 이후 단안·아래쪽 카메라에서 타원 찌그러짐을 이용하는 요구에 맞춰 [Pupil Labs 3D 실험](PUPIL3D_KO.md)을 추가했습니다. `start-pupil.sh`는 실제 3D 모델, `start-mac.sh`는 기존 엔진을 사용합니다. 아래 2D 엔진과 착용 안내는 대안 개발안이며 아직 구현하지 않았습니다. 물리 Pi의 지속 24 FPS와 보정 정확도도 아직 측정하지 않았습니다.
+2026-09-30 조사 및 로컬 검사 기록입니다. 이후 단안·아래쪽 카메라에서 타원 찌그러짐을 이용하는 요구에 맞춰 [Pupil Labs 3D 실험](PUPIL3D_KO.md)을 추가했습니다. `start-pupil.sh`는 실제 3D 모델, `start-mac.sh`는 기존 엔진을 사용합니다. 아래 별도 2D 엔진은 대안 개발안입니다. 착용 확인·정면 안내·9점 보정·3점 검증과 두 커서는 현재 예시 작품에 구현했습니다. 물리 Pi의 지속 24 FPS와 보정 정확도도 아직 측정하지 않았습니다.
 
 ## 구현 방향
 
@@ -47,4 +47,4 @@ Pi에서 `v4l2-ctl -d /dev/video0 --list-formats-ext`로 MJPEG 해상도별 FPS�
 
 ## 적용 상태
 
-로컬 수정은 Mac 재시작 및 Pi 업데이트 전에는 실행 서비스에 반영되지 않습니다. GitHub push는 하지 않았습니다. 코드가 GitHub에 올라간 뒤 Pi에서 `bash exhibition/scripts/update-pi.sh`, Mac은 `bash start-mac.sh`로 재시작합니다. 토큰은 유지되지만 다시 보정합니다. 새 착용 안내와 2D 엔진은 위 개발안의 다음 단계입니다.
+로컬 수정은 Mac 재시작 및 Pi 업데이트 전에는 실행 서비스에 반영되지 않습니다. GitHub push는 하지 않았습니다. 코드가 GitHub에 올라간 뒤 Pi에서 `bash exhibition/scripts/update-pi.sh`, Mac은 `bash start-mac.sh`로 재시작합니다. 토큰은 유지되지만 다시 보정합니다. 작품 내 착용 안내와 보정은 구현했으며 별도 2D 엔진은 후속 비교 대상입니다.

@@ -1,22 +1,25 @@
 <!doctype html>
-<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EyeTracker · 교체 가능한 예시 작품</title>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#101720;color:#eef4fc;font:16px system-ui;min-height:100vh}header{padding:24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}h1{font-size:22px}button,a{color:inherit}button{font:inherit;background:#253b50;border:1px solid #66829e;border-radius:8px;padding:10px;cursor:pointer}main{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:24px;height:65vh}.tile{display:grid;place-items:center;border:1px solid #3a526c;border-radius:20px;font-size:36px}.cursor{position:fixed;pointer-events:none;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;border:3px solid var(--color);box-shadow:0 0 24px var(--color)}.cursor span{position:absolute;left:40px;top:0;color:var(--color);font-weight:700;white-space:nowrap}#p1{--color:#6de5ff}#p2{--color:#ffbc76}footer{padding:24px;color:#a9bfd3}
-</style>
-<header><h1>두 사람의 시선 · 하나의 작품 화면</h1><span id="s1">1P 연결 중</span><span id="s2">2P 연결 중</span><button id="full">전체 화면</button><a href="http://localhost:8080/admin" target="_blank" rel="noopener">관리자 ↗</a></header>
-<main><div class="tile">함께</div><div class="tile">바라보는</div><div class="tile">하나의</div><div class="tile">화면</div></main>
-<div id="p1" class="cursor" hidden><span>1P</span></div><div id="p2" class="cursor" hidden><span>2P</span></div><footer>1P는 하늘색, 2P는 주황색이에요. 두 커서는 화면 전체를 함께 사용해요. 이 화면은 예시 작품이에요. exhibition/frontend-example/index.html을 바꾸거나 별도 작품 서버를 연결하세요.</footer>
-<script type="module">
-import {connectGaze} from '/gaze-client.js';
-const stops=[];
-try {
- const response=await fetch('/connection.json');if(!response.ok)throw Error('구독 설정을 읽지 못했어요');
- const {players}=await response.json();
- for(const {user_id:id,url,token} of players){
-  const cursor=document.getElementById('p'+id),state=document.getElementById('s'+id);
-  stops.push(connectGaze(url,g=>{cursor.hidden=!g.valid;if(g.valid){cursor.style.left=g.x*innerWidth+'px';cursor.style.top=g.y*innerHeight+'px';}state.textContent=`${id}P · ${g.valid?'시선 수신 중':g.calibrated?'검출 대기':'보정 필요'}`;},status=>{if(status!=='connected')state.textContent=`${id}P · ${status==='stale'?'응답 지연':'연결 끊김'}`;},{token}));
- }
-}catch(error){document.getElementById('s1').textContent=error.message;document.getElementById('s2').textContent=error.message;}
-document.getElementById('full').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
-addEventListener('pagehide',()=>stops.forEach(stop=>stop()));
-</script></html>
+<html lang="ko">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>시선의 놀이터 · EyeTracker</title>
+<link rel="stylesheet" href="/assets/style.css">
+<body>
+<header><div><span class="eyebrow">EYE PLAY · TWO PEOPLE, ONE SCREEN</span><h1>시선의 놀이터</h1></div><nav><button id="full">전체 화면</button><a href="http://localhost:8080/admin" target="_blank" rel="noopener">운영 화면 ↗</a></nav></header>
+<main>
+ <section class="playground" aria-label="두 사람의 시선 화면">
+  <div class="intro"><span class="eyebrow">LOOK, AND LET IT MOVE</span><h2>눈으로 움직이는<br>두 개의 빛.</h2><p>먼저 눈 영상을 확인하고 점을 따라보세요.<br>보정이 끝나면 시선이 커서가 됩니다.</p></div>
+  <div class="tiles"><div class="tile">함께<span>01</span></div><div class="tile">바라보는<span>02</span></div><div class="tile">하나의<span>03</span></div><div class="tile">화면<span>04</span></div></div>
+  <p id="play-note" role="status">점선 커서는 보정 전 임시 위치입니다. 보정된 커서는 실선으로 표시됩니다.</p>
+ </section>
+ <aside class="players" aria-label="카메라와 개인별 보정">
+  <section class="player" id="card1" data-user="1"><div class="player-heading"><h3><i></i>1P</h3><span class="connection">연결 중</span></div><div class="camera"><img class="preview" alt="1P 라이브 눈 영상" hidden><span class="placeholder">눈 카메라 연결을 기다립니다</span></div><p class="tracking">입력 확인 중</p><p class="performance">— FPS</p><button class="start" disabled>착용 확인 · 보정 시작</button><p class="result" role="status">보정 전</p></section>
+  <section class="player" id="card2" data-user="2"><div class="player-heading"><h3><i></i>2P</h3><span class="connection">연결 중</span></div><div class="camera"><img class="preview" alt="2P 라이브 눈 영상" hidden><span class="placeholder">눈 카메라 연결을 기다립니다</span></div><p class="tracking">입력 확인 중</p><p class="performance">— FPS</p><button class="start" disabled>착용 확인 · 보정 시작</button><p class="result" role="status">보정 전</p></section>
+ </aside>
+</main>
+<div id="p1" class="cursor" hidden aria-hidden="true"><span>1P</span></div><div id="p2" class="cursor" hidden aria-hidden="true"><span>2P</span></div>
+<section id="calibration" role="dialog" aria-modal="true" aria-labelledby="cal-title" hidden>
+ <div id="target" hidden aria-hidden="true"></div>
+ <div class="cal-panel bottom"><div class="cal-camera"><img id="cal-preview" alt="보정 중 라이브 눈 영상" hidden><span id="cal-camera-state">눈 영상 연결 확인 중</span><small>라이브 눈 카메라</small></div><div class="cal-copy"><span id="cal-step" class="eyebrow"></span><h2 id="cal-title"></h2><p id="cal-message" role="status" aria-live="polite"></p><div class="progress"><div id="progress-bar"></div></div><div class="cal-actions"><button id="continue" hidden></button><button id="retry" hidden>같은 단계 다시 시도</button><button id="cancel">취소</button></div></div></div>
+</section>
+<script type="module" src="/assets/app.js"></script>
+</body></html>

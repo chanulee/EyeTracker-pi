@@ -16,7 +16,7 @@ body{font:16px system-ui;background:#151b25;color:#eaf0fa;max-width:700px;margin
 <p>MJPEG 직송은 카메라가 지원할 때만 사용합니다. 상태의 transport_mode가 camera-mjpeg인지 확인하세요. 이 모드에서는 JPEG 품질은 카메라 설정을 따릅니다. 회전은 Mac에서 설정하세요. Pi 회전을 켜면 재인코딩합니다.</p>
 <label>JPEG 품질<input name="quality" type="number" min="30" max="90" required></label>
 <label><input name="flip" type="checkbox"> 영상을 180° 회전</label>
-<button>저장하고 다시 연결</button></form>
+<button>설정 저장</button></form>
 <p id="message" role="status"></p><h2>상태</h2><pre id="status"></pre>
 <img id="preview" alt="USB 눈 카메라 미리보기">
 <script>
@@ -35,7 +35,7 @@ request('/api/config').then(data=>{
 form.onsubmit=async event=>{
  event.preventDefault(); const data={};
  for(const input of form.querySelectorAll('input,select')) data[input.name]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
- try{await request('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});message.textContent='저장했습니다. 자동으로 재연결합니다.';}
+ try{const result=await request('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});message.textContent=result.reconnected?'저장했습니다. 영상 연결과 Mac 보정을 다시 시작합니다.':'저장했습니다. FPS/품질을 적용하며 Mac 연결과 보정은 유지합니다. 카메라 MJPEG 직송에서는 JPEG 품질 값을 사용하지 않습니다.';}
  catch(error){message.textContent=error.message;}
 };
 let previewBusy=false;

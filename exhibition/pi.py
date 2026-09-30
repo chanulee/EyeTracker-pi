@@ -53,7 +53,7 @@ def jpeg_size(data):
 
 
 def capture_settings(config):
-    return tuple(config[key] for key in ('camera', 'width', 'height', 'fps', 'quality', 'flip', 'transport'))
+    return tuple(config[key] for key in ('camera', 'width', 'height', 'fps', 'flip', 'transport'))
 
 
 class FrameRateGate:
@@ -175,7 +175,7 @@ class Camera:
                         if settings['flip']:
                             frame = cv2.flip(frame, -1)
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        ok, encoded = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, settings['quality']])
+                        ok, encoded = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, self.config['quality']])
                         jpg = encoded.tobytes() if ok else None
                     if ok:
                         with self.lock:
@@ -232,12 +232,14 @@ def create_app(config_path):
         except (ValueError, TypeError, AttributeError) as error:
             raise web.HTTPBadRequest(text=str(error))
         updated = dict(config, **data)
+        reconnect = any(updated[key] != config[key] for key in
+                        ('receiver', 'token', 'camera', 'width', 'height', 'flip', 'transport'))
         save_config(config_path, updated)
         config.update(data)
         camera.config = dict(config)
-        if active:
+        if active and reconnect:
             await active.close()
-        return web.json_response({'saved': True})
+        return web.json_response({'saved': True, 'reconnected': reconnect})
 
     async def status(request):
         seq, latest, message = camera.snapshot()
