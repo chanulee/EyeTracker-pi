@@ -1,0 +1,47 @@
+{
+  "video": "/Users/chanwoo/Documents/GitHub/EyeTracker-pi/exhibition/assets/eye_test.mp4",
+  "tracker_sha256": "5fa7f9c16328015cea24d6238983d7031f5ac1b3113b093745715f7178619bdd",
+  "frames": 120,
+  "detected_frames": 120,
+  "center_difference_median_px": 0.9417328455153804,
+  "center_difference_max_px": 2.4760665008121476,
+  "adaptive_radius_changes_direction": false,
+  "examples": [
+    {
+      "frame": 0,
+      "gaze_input": [
+        283,
+        209
+      ],
+      "final_ellipse_center": [
+        282.8882751464844,
+        209.52688598632812
+      ],
+      "difference_px": 0.5386012304869429
+    },
+    {
+      "frame": 1,
+      "gaze_input": [
+        284,
+        209
+      ],
+      "final_ellipse_center": [
+        284.0509033203125,
+        209.89291381835938
+      ],
+      "difference_px": 0.8943635921905341
+    },
+    {
+      "frame": 2,
+      "gaze_input": [
+        266,
+        203
+      ],
+      "final_ellipse_center": [
+        266.11444091796875,
+        203.6625213623047
+      ],
+      "difference_px": 0.6723327146700427
+    }
+  ]
+}

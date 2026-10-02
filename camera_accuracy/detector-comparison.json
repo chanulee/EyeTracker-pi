@@ -1,0 +1,197 @@
+{
+  "video": "exhibition/assets/eye_test.mp4",
+  "scope": "Unlabeled input; acceptance is not accuracy or recall. Confidence differs across engines.",
+  "summaries": [
+    {
+      "engine": "orlosky",
+      "frames": 120,
+      "candidates": 120,
+      "accepted": 119,
+      "median_ms": 12.494895519921556,
+      "p95_ms": 13.275514877750538,
+      "first": {
+        "pupil_ellipse": {
+          "center": [
+            282.8882751464844,
+            209.52688598632812
+          ],
+          "axes": [
+            121.04622650146484,
+            132.0953369140625
+          ],
+          "angle_degrees": 42.14365005493164
+        },
+        "eye_center": [
+          320,
+          240
+        ],
+        "sphere_radius": 0.0,
+        "confidence": 0.9874390775448746,
+        "origin": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "direction": [
+          -0.13834319418246285,
+          0.11590916269341486,
+          0.9835782768174096
+        ]
+      }
+    },
+    {
+      "engine": "pupil-2d",
+      "frames": 120,
+      "candidates": 88,
+      "accepted": 63,
+      "median_ms": 1.2002919684164226,
+      "p95_ms": 3.6615124758100137,
+      "first": {
+        "confidence": 0.0,
+        "direction": null,
+        "ready": false,
+        "pupil_ellipse": null,
+        "tracker_details": {
+          "engine": "pupil-2d",
+          "packages": {
+            "pupil-detectors": "2.0.2"
+          },
+          "work_size": [
+            640,
+            480
+          ],
+          "input_kind": "pupil_center_2d",
+          "direction_frame": "image_feature",
+          "origin_unit": null,
+          "focal_length_px": null,
+          "intrinsics_measured": false,
+          "settings": {
+            "pupil_min": 10.0,
+            "pupil_max": 160.0,
+            "intensity_range": 23,
+            "roi": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          },
+          "confidence_kind": "pupil_labs_2d"
+        },
+        "tracker_error": "설정한 눈 영역/동공 크기에 맞는 후보 없음"
+      }
+    },
+    {
+      "engine": "pure",
+      "frames": 120,
+      "candidates": 120,
+      "accepted": 119,
+      "median_ms": 2.6192919758614153,
+      "p95_ms": 2.88538959575817,
+      "first": {
+        "confidence": 1.0,
+        "direction": null,
+        "ready": true,
+        "pupil_ellipse": {
+          "center": [
+            283.03790283203125,
+            209.81365966796875
+          ],
+          "axes": [
+            111.50323486328125,
+            121.9695053100586
+          ],
+          "angle_degrees": 40.065467834472656
+        },
+        "tracker_details": {
+          "engine": "pure",
+          "packages": {
+            "PyPupilEXT": "0.0.1"
+          },
+          "work_size": [
+            640,
+            480
+          ],
+          "input_kind": "pupil_center_2d",
+          "direction_frame": "image_feature",
+          "origin_unit": null,
+          "focal_length_px": null,
+          "intrinsics_measured": false,
+          "settings": {
+            "pupil_min": 10.0,
+            "pupil_max": 160.0,
+            "intensity_range": 23,
+            "roi": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          },
+          "confidence_kind": "pure",
+          "outline_confidence": 1.0
+        },
+        "raw": [
+          -0.11550655364990237,
+          0.12577641805013018
+        ]
+      }
+    },
+    {
+      "engine": "else",
+      "frames": 120,
+      "candidates": 95,
+      "accepted": 84,
+      "median_ms": 8.541396004147828,
+      "p95_ms": 9.607669350225478,
+      "first": {
+        "confidence": 1.0,
+        "direction": null,
+        "ready": true,
+        "pupil_ellipse": {
+          "center": [
+            281.546142578125,
+            209.77774047851562
+          ],
+          "axes": [
+            114.80786895751953,
+            122.05204010009766
+          ],
+          "angle_degrees": 51.53956604003906
+        },
+        "tracker_details": {
+          "engine": "else",
+          "packages": {
+            "PyPupilEXT": "0.0.1"
+          },
+          "work_size": [
+            640,
+            480
+          ],
+          "input_kind": "pupil_center_2d",
+          "direction_frame": "image_feature",
+          "origin_unit": null,
+          "focal_length_px": null,
+          "intrinsics_measured": false,
+          "settings": {
+            "pupil_min": 10.0,
+            "pupil_max": 160.0,
+            "intensity_range": 23,
+            "roi": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ]
+          },
+          "confidence_kind": "else",
+          "outline_confidence": 1.0
+        },
+        "raw": [
+          -0.12016830444335935,
+          0.12592608133951821
+        ]
+      }
+    }
+  ]
+}

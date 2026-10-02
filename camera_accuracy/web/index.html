@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>눈 카메라 · 정확도 테스트</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#131b26;color:#edf3fa;font:16px system-ui}
+button,a{font:inherit;color:inherit}button{padding:9px 14px;background:#24354a;border:1px solid #8aa5bb;border-radius:6px;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #ffcc66}
+[hidden]{display:none!important}header{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:18px;border-bottom:1px solid #3c4d62}
+h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320px;max-width:100%;aspect-ratio:4/3;object-fit:contain}
+#status,#result{white-space:pre-wrap}#status{font:13px monospace;color:#b3c4d7}#calibration{position:fixed;inset:0;background:#131b26;z-index:5}
+#dot,#cursor{position:fixed;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+#dot{width:30px;height:30px;background:#ff6d72;border:5px solid white}#cursor{width:24px;height:24px;border:3px solid #ffcc66}
+#panel{position:absolute;left:50%;bottom:3%;transform:translateX(-50%);width:min(640px,calc(100vw - 24px));padding:16px;background:#1d2a3aee;border:1px solid #3c4d62;border-radius:12px;display:flex;gap:16px;align-items:center}
+#calpreview{width:150px;max-width:25vw;aspect-ratio:4/3;object-fit:contain}#message{margin-top:0}small{color:#b3c4d7}
+.record-controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.record-controls button{font-size:14px;padding:7px 10px}.record-status{display:block;color:#b3c4d7;font-size:13px;white-space:pre-wrap}.record-status.active{color:#ffcc66}.record-status.error{color:#ff8f8f}
+#preview-wrap{position:relative;width:320px;max-width:100%;aspect-ratio:4/3;touch-action:none}#roi-box{position:absolute;border:2px solid #ffcc66;pointer-events:none}#preview-wrap.selecting{cursor:crosshair}label{display:inline-block;margin:6px 8px 6px 0}input,select{font:inherit;color:inherit;background:#24354a;border:1px solid #8aa5bb;border-radius:4px;padding:4px}input{width:76px}details{margin:16px 0}#setup-message{white-space:pre-wrap;color:#ffcc66}
+@media(max-height:500px){#calpreview{width:90px}#panel{padding:8px}}
+</style>
+<header><h1>눈 카메라 · 정확도 테스트</h1><button id="start">1 → 9 → 4 시작</button><button id="fullscreen">전체 화면</button><a href="/api/report" id="download" download="eye-accuracy.json">진단 JSON 저장</a></header>
+<main>
+ <div class="record-controls">
+  <button data-record="start_log">로그 기록 시작</button><button data-record="stop_log" disabled>로그 기록 종료</button>
+  <button data-record="start_video">영상 녹화 시작</button><button data-record="stop_video" disabled>영상 녹화 종료</button>
+  <a class="record-download" hidden>기록 ZIP 다운로드</a>
+ </div><span class="record-status" role="status">기록 대기</span>
+ <p>카메라를 맥에 연결하고 눈 영상의 타원을 확인하세요. 전체 화면이 필요하면 먼저 전환한 뒤 보정을 시작하세요. 카메라·머리·화면 위치를 유지하면서 점을 바라보세요.</p>
+ <button id="camera-feed">카메라 연결 새로고침</button>
+ <div id="preview-wrap" hidden><img id="preview" alt="맥에 연결한 눈 카메라의 동공 검출 영상" hidden><div id="roi-box" hidden></div></div>
+ <details><summary>동공 검출 설정 · 눈 영역 선택</summary>
+  <label>검출기 <select id="engine"><option value="pure">PuRe · 2D (기본)</option><option value="pure-3d">PuRe + Pupil Labs 3D (실험)</option><option value="pupil-2d">Pupil Labs · 2D</option><option value="pupil-3d">Pupil Labs · 3D (실험)</option><option value="else">ElSe · 2D (비교)</option><option value="orlosky">기존 Orlosky (비교)</option></select></label><br>
+  <label>최소 지름 <input id="pupil-min" type="number" min="3" max="200" value="10"></label>
+  <label>최대 지름 <input id="pupil-max" type="number" min="4" max="400" value="160"></label><br>
+  <label>Pupil Labs 명암 범위 <input id="intensity-range" type="number" min="1" max="100" value="23"></label>
+  <label>3D 초점거리 <input id="focal-length" type="number" min="100" max="3000" value="560"></label><br>
+  <button id="select-roi">영상에서 눈 영역 지정</button><button id="clear-roi">전체 영역</button><button id="apply-detector">설정 적용 · 보정 초기화</button>
+  <br><label>영역 왼쪽 % <input id="roi-left" type="number" min="0" max="100" step="0.1" value="0"></label><label>위 % <input id="roi-top" type="number" min="0" max="100" step="0.1" value="0"></label><label>오른쪽 % <input id="roi-right" type="number" min="0" max="100" step="0.1" value="100"></label><label>아래 % <input id="roi-bottom" type="number" min="0" max="100" step="0.1" value="100"></label>
+  <p><small>영역 지정 후 영상에서 눈 전체가 들어오도록 드래그하고 설정 적용을 누르세요. 좌우·상하를 볼 때도 동공이 영역 안에 있어야 합니다. 지름과 초점거리는 640×480 처리 영상의 px 기준입니다. 초점거리 기본값은 실측값이 아닙니다. 2D는 위치 고정이 필요하며, 3D도 머리와 화면 사이의 움직임을 모두 보정하지는 못합니다.</small></p>
+ </details>
+ <p id="setup-message" role="status"></p>
+ <p id="result" role="status">중앙 1점 → 3×3 보정 9점 → 대각선 검증 4점</p>
+ <pre id="status" aria-live="off">카메라 연결 대기</pre>
+ <small>초록 타원은 동공 형태 품질을 표시합니다. 화면 정확도는 대각선 검증에서 확인합니다.</small>
+</main>
+<div id="cursor" hidden></div>
+<section id="calibration" role="dialog" aria-modal="true" aria-label="1·9·4 시선 보정" hidden>
+ <div id="dot" hidden></div>
+ <div id="panel"><img id="calpreview" alt="보정 중 눈 카메라 영상" hidden><div>
+  <p id="message" role="status"></p>
+  <button id="continue" hidden>눈 영상 확인 완료</button>
+  <button id="retry" hidden>같은 점 다시 수집</button>
+  <button id="cancel">취소</button>
+  <div class="record-controls">
+   <button data-record="start_log">로그 기록 시작</button><button data-record="stop_log" disabled>로그 기록 종료</button>
+   <button data-record="start_video">영상 녹화 시작</button><button data-record="stop_video" disabled>영상 녹화 종료</button>
+   <a class="record-download" hidden>기록 ZIP 다운로드</a>
+  </div><span class="record-status" role="status">기록 대기</span>
+ </div></div>
+</section>
+<script type="module" src="/app.js"></script>
+</html>
