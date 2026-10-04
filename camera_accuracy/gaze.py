@@ -23,10 +23,19 @@ def fit_calibration(inputs, targets):
     if np.linalg.matrix_rank(design) < 6 or np.linalg.cond(design) > 100:
         raise ValueError('지점 데이터가 겹칩니다. 다시 보정하세요')
     weights = np.linalg.lstsq(design, targets, rcond=None)[0]
-    error = float(np.max(np.linalg.norm(design @ weights - targets, axis=1)))
+    errors = np.linalg.norm(design @ weights - targets, axis=1)
+    error = float(np.max(errors))
     if error > .12:
-        raise ValueError('보정 오차가 큽니다. 자세와 조명을 확인하세요')
-    return {'mu': mu.tolist(), 'sd': sd.tolist(), 'weights': weights.tolist(), 'fit_error': error}
+        raise ValueError(f'전체 9점 보정 오차 {error:.3f} / 기준 0.120 · 가장 큰 오차는 {int(np.argmax(errors)) + 1}번 목표입니다. '
+                         '마지막 점만의 문제가 아닐 수 있습니다. 실패가 반복되면 취소하고 9점부터 다시 보정하세요')
+    # Leave-one-point-out checks expose a flexible polynomial fitting inconsistent observations.
+    leave_one_out = []
+    for index in range(9):
+        keep = np.arange(9) != index
+        omitted = design[index] @ np.linalg.lstsq(design[keep], targets[keep], rcond=None)[0]
+        leave_one_out.append(float(np.linalg.norm(omitted-targets[index])))
+    return {'mu': mu.tolist(), 'sd': sd.tolist(), 'weights': weights.tolist(), 'fit_error': error,
+            'loo_errors': leave_one_out, 'loo_max_error': max(leave_one_out)}
 
 
 def predict(model, raw):

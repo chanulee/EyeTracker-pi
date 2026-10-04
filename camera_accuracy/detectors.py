@@ -31,7 +31,7 @@ class OpenSourceTracker:
             packages = {'pupil-detectors': version('pupil-detectors')}
         else:
             import pypupilext
-            self.detector_type = pypupilext.PuRe if engine in ('pure', 'pure-3d') else pypupilext.ElSe
+            self.detector_type = pypupilext.PuReST if engine == 'pure-st' else pypupilext.PuRe if engine in ('pure', 'pure-3d') else pypupilext.ElSe
             packages = {'PyPupilEXT': version('PyPupilEXT')}
         self.detector3d = None
         if engine in ('pupil-3d', 'pure-3d'):
@@ -77,13 +77,28 @@ class OpenSourceTracker:
         else:
             import pypupilext
             pupil = pypupilext.Pupil()
-            self.detector.runWithConfidence(gray, (x, y, x2 - x, y2 - y), pupil, minimum, maximum)
+            if self.engine == 'pure-st':
+                # Avoid upstream ROI overload's diameter-argument bug. Never alter image scale.
+                masked = gray.copy()
+                allowed = np.zeros_like(gray, dtype=bool)
+                allowed[y:y2, x:x2] = True
+                masked[~allowed] = 255
+                pupil = self.detector.run(masked)
+            else:
+                self.detector.runWithConfidence(gray, (x, y, x2 - x, y2 - y), pupil, minimum, maximum)
             center, axes, angle = pupil.center, pupil.size, pupil.angle
             # PuRe has its own detection confidence. Outline fit alone is not pupil identity.
-            quality = float(pupil.confidence if self.engine in ('pure', 'pure-3d') else pupil.outline_confidence)
+            quality = float(pupil.confidence if self.engine in ('pure', 'pure-3d', 'pure-st') else pupil.outline_confidence)
             details = dict(self.metadata, settings=dict(self.settings), confidence_kind=self.engine,
                            outline_confidence=float(pupil.outline_confidence) if np.isfinite(pupil.outline_confidence) else None)
             observation = dict(ellipse=dict(center=center, axes=axes, angle=angle), confidence=quality)
+        self.finish_observation(gray, center, axes, angle, quality, details)
+
+    def finish_observation(self, gray, center, axes, angle, quality, details):
+        minimum, maximum = self.settings['pupil_min'], self.settings['pupil_max']
+        left, top, right, bottom = self.settings['roi']
+        x, y, x2, y2 = round(left * 640), round(top * 480), round(right * 640), round(bottom * 480)
+        observation = dict(ellipse=dict(center=center, axes=axes, angle=angle), confidence=quality)
         values = np.asarray([*center, *axes, angle, quality], dtype=float)
         self.last = dict(confidence=0., direction=None, ready=False, pupil_ellipse=None, tracker_details=details)
         if (not np.isfinite(values).all() or min(axes) <= 0 or not minimum <= max(axes) <= maximum
@@ -99,7 +114,9 @@ class OpenSourceTracker:
         if quality < .65:
             self.last['tracker_error'] = '동공 검출 품질 부족'
             return
-        now = time.monotonic()
+        now = getattr(self, 'frame_timestamp', None)
+        if now is None:
+            now = time.monotonic()
         if self.started is None:
             self.started = now
         observation['timestamp'] = now

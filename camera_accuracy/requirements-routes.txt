@@ -1,0 +1,2 @@
+# Existing native detectors are installed by install-detectors.sh.
+torch==2.8.0

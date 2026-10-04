@@ -74,7 +74,7 @@
 
 ## 오픈소스 선택과 구현한 개선
 
-**현재 결정: 고정 위치 테스트는 PuRe 2D를 기본으로 하고, 흔들림 대응은 PuRe+pye3d를 실험 옵션으로 비교합니다.** 검출기를 새로 작성하지 않고 [PyPupilEXT](https://github.com/openPupil/PyPupilEXT)의 공식 Apple Silicon Python 3.10 wheel과 Pupil Labs의 공식 소스를 사용했습니다. 기존 회귀·검증·필터는 유지해 동공 검출 교체의 영향을 볼 수 있게 했습니다. pye3d는 준비 중 및 완료 후 적응하고 9점·4점 수집 동안 고정합니다. 일반적인 머리-화면 이동 보정까지 구현했다는 뜻은 아닙니다.
+**2026-10-01 잠정 결정: 공개 예시 영상에서는 PuRe 2D를 기본으로 선택했습니다. 2026-10-02 실제 사용자 영상 검진 후 기본값은 Orlosky로 복귀했고, 다음 비교는 [DEVELOPMENT_DIRECTIONS.md](DEVELOPMENT_DIRECTIONS.md)를 따릅니다.** 검출기를 새로 작성하지 않고 [PyPupilEXT](https://github.com/openPupil/PyPupilEXT)의 공식 Apple Silicon Python 3.10 wheel과 Pupil Labs의 공식 소스를 사용했습니다. 기존 회귀·검증·필터는 유지해 동공 검출 교체의 영향을 볼 수 있게 했습니다. pye3d는 준비 중 및 완료 후 적응하고 9점·4점 수집 동안 고정합니다. 일반적인 머리-화면 이동 보정까지 구현했다는 뜻은 아닙니다.
 
 동일한 제공 영상 첫 120프레임, 설정 지름 10~160px, 수용 기준 0.65로 비교했습니다. 아래 시간은 검출 호출만 측정하며 전체 화면 지연이 아닙니다.
 

@@ -20,7 +20,9 @@ h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320p
 </style>
 <header><h1>눈 카메라 · 정확도 테스트</h1><button id="start">1 → 9 → 4 시작</button><button id="fullscreen">전체 화면</button><a href="/api/report" id="download" download="eye-accuracy.json">진단 JSON 저장</a></header>
 <main>
+ <p id="source-status" role="status">입력 소스 확인 중…</p>
  <div class="record-controls">
+  <button data-record="start_all">로그 + 영상 함께 시작</button><button data-record="stop_all" disabled>함께 종료</button>
   <button data-record="start_log">로그 기록 시작</button><button data-record="stop_log" disabled>로그 기록 종료</button>
   <button data-record="start_video">영상 녹화 시작</button><button data-record="stop_video" disabled>영상 녹화 종료</button>
   <a class="record-download" hidden>기록 ZIP 다운로드</a>
@@ -29,19 +31,23 @@ h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320p
  <button id="camera-feed">카메라 연결 새로고침</button>
  <div id="preview-wrap" hidden><img id="preview" alt="맥에 연결한 눈 카메라의 동공 검출 영상" hidden><div id="roi-box" hidden></div></div>
  <details><summary>동공 검출 설정 · 눈 영역 선택</summary>
-  <label>검출기 <select id="engine"><option value="pure">PuRe · 2D (기본)</option><option value="pure-3d">PuRe + Pupil Labs 3D (실험)</option><option value="pupil-2d">Pupil Labs · 2D</option><option value="pupil-3d">Pupil Labs · 3D (실험)</option><option value="else">ElSe · 2D (비교)</option><option value="orlosky">기존 Orlosky (비교)</option></select></label><br>
+  <label>검출기 <select id="engine"><option value="orlosky">기존 Orlosky (비교)</option><option value="orlosky-ecc">D + 착용자 기준 보정 (ECC)</option><option value="orlosky-tapir">D + TAPIR 주변 추적 (GPU 실험)</option><option value="deepvog">DeepVOG 동공 분할 (GPU 실험)</option><option value="deepvog-ecc">DeepVOG + 착용자 기준 보정 (GPU 실험)</option><option value="orlosky-stable">Route A · Orlosky 영역·가림·후보 유지 (2D)</option><option value="orlosky-flow">Route D · Orlosky + OpenCV 연속 추적</option><option value="orlosky-stable-3d">Route B · A + Pupil Labs 3D (초점거리 미실측)</option><option value="ritnet">Route C · RITnet 동공·홍채 분할 (실험)</option><option value="pure-st">PuReST · 시간적 추적 비교</option><option value="pure">PuRe · 2D (비교)</option><option value="pure-3d">PuRe + Pupil Labs 3D (실험)</option><option value="pupil-2d">Pupil Labs · 2D</option><option value="pupil-3d">Pupil Labs · 3D (실험)</option><option value="else">ElSe · 2D (비교)</option></select></label><br>
   <label>최소 지름 <input id="pupil-min" type="number" min="3" max="200" value="10"></label>
   <label>최대 지름 <input id="pupil-max" type="number" min="4" max="400" value="160"></label><br>
-  <label>Pupil Labs 명암 범위 <input id="intensity-range" type="number" min="1" max="100" value="23"></label>
-  <label>3D 초점거리 <input id="focal-length" type="number" min="100" max="3000" value="560"></label><br>
-  <button id="select-roi">영상에서 눈 영역 지정</button><button id="clear-roi">전체 영역</button><button id="apply-detector">설정 적용 · 보정 초기화</button>
-  <br><label>영역 왼쪽 % <input id="roi-left" type="number" min="0" max="100" step="0.1" value="0"></label><label>위 % <input id="roi-top" type="number" min="0" max="100" step="0.1" value="0"></label><label>오른쪽 % <input id="roi-right" type="number" min="0" max="100" step="0.1" value="100"></label><label>아래 % <input id="roi-bottom" type="number" min="0" max="100" step="0.1" value="100"></label>
+  <label><input id="auto-intensity" type="checkbox" checked style="width:auto">명암 범위 자동 (A/B/D)</label><br>
+  <label><input id="compensate-motion" type="checkbox" style="width:auto">피부 기준 흔들림 보정 (D 실험 · 추적 실패 시 재설정 필요)</label><br>
+  <label>명암 범위 (수동) <input id="intensity-range" type="number" min="1" max="100" value="23"></label>
+  <label>3D 모델 초점거리 <input id="focal-length" type="number" min="100" max="3000" value="560"></label><br>
+  <p id="focus-status">렌즈 초점과 3D 모델 초점거리는 별개입니다. 현재 Mac 입력 경로의 자동 초점 지원을 확인합니다.</p>
+  <button id="select-pupil" disabled>동공 직접 지정 · D 추적 시작</button><br>
+  <button id="wide-roi">기본 영역 10–90%</button><button id="central-roi">중앙 2×2 영역</button><button id="select-roi">영상에서 눈 영역 지정</button><button id="clear-roi">전체 영역</button><button id="apply-detector">설정 적용 · 보정 초기화</button>
+  <br><label>영역 왼쪽 % <input id="roi-left" type="number" min="0" max="100" step="0.1" value="10"></label><label>위 % <input id="roi-top" type="number" min="0" max="100" step="0.1" value="25"></label><label>오른쪽 % <input id="roi-right" type="number" min="0" max="100" step="0.1" value="90"></label><label>아래 % <input id="roi-bottom" type="number" min="0" max="100" step="0.1" value="75"></label>
   <p><small>영역 지정 후 영상에서 눈 전체가 들어오도록 드래그하고 설정 적용을 누르세요. 좌우·상하를 볼 때도 동공이 영역 안에 있어야 합니다. 지름과 초점거리는 640×480 처리 영상의 px 기준입니다. 초점거리 기본값은 실측값이 아닙니다. 2D는 위치 고정이 필요하며, 3D도 머리와 화면 사이의 움직임을 모두 보정하지는 못합니다.</small></p>
  </details>
  <p id="setup-message" role="status"></p>
  <p id="result" role="status">중앙 1점 → 3×3 보정 9점 → 대각선 검증 4점</p>
  <pre id="status" aria-live="off">카메라 연결 대기</pre>
- <small>초록 타원은 동공 형태 품질을 표시합니다. 화면 정확도는 대각선 검증에서 확인합니다.</small>
+ <small>타원은 동공 원판의 투영 모델입니다. 가려진 부분의 추정은 실험 단계입니다. RITnet 색상: 초록 동공 · 파랑 홍채 · 갈색 흰자. 검출 품질은 방법별 의미가 다릅니다. 화면 정확도는 대각선 검증에서 확인합니다.</small>
 </main>
 <div id="cursor" hidden></div>
 <section id="calibration" role="dialog" aria-modal="true" aria-label="1·9·4 시선 보정" hidden>
@@ -52,7 +58,8 @@ h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320p
   <button id="retry" hidden>같은 점 다시 수집</button>
   <button id="cancel">취소</button>
   <div class="record-controls">
-   <button data-record="start_log">로그 기록 시작</button><button data-record="stop_log" disabled>로그 기록 종료</button>
+   <button data-record="start_all">로그 + 영상 함께 시작</button><button data-record="stop_all" disabled>함께 종료</button>
+  <button data-record="start_log">로그 기록 시작</button><button data-record="stop_log" disabled>로그 기록 종료</button>
    <button data-record="start_video">영상 녹화 시작</button><button data-record="stop_video" disabled>영상 녹화 종료</button>
    <a class="record-download" hidden>기록 ZIP 다운로드</a>
   </div><span class="record-status" role="status">기록 대기</span>

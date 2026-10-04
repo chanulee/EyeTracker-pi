@@ -1,0 +1,9 @@
+# Keep the native pupil-detectors / PyPupilEXT NumPy ABI intact.
+numpy==1.26.4
+torch==2.8.0
+keras==3.12.4
+h5py==3.14.0
+ml-dtypes==0.5.4
+einops==0.8.2
+einshape==1.0
+dm-tree==0.1.10

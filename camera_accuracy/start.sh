@@ -2,6 +2,8 @@
 set -euo pipefail
 repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_dir"
+export KERAS_BACKEND=torch
+export PYTORCH_ENABLE_MPS_FALLBACK=1
 python_bin="${EYE_PYTHON:-camera_accuracy/.venv/bin/python}"
 if [ ! -x "$python_bin" ]; then
   if [ "$python_bin" != camera_accuracy/.venv/bin/python ]; then

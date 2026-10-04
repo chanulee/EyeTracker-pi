@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import unittest
 import tempfile
+import time
 import zipfile
 from unittest.mock import patch
 import importlib.util
@@ -26,6 +27,119 @@ def raw_for(point):
 
 
 class BenchChecks(unittest.IsolatedAsyncioTestCase):
+    async def test_collection_uses_recent_stable_observations_after_a_transient(self):
+        from .server import Runtime, DEFAULTS
+        runtime = Runtime(dict(DEFAULTS), load_tracker())
+
+        async def feed():
+            for i in range(30):
+                runtime.accept(result((1., -1.) if i < 4 else (.1, -.1)))
+                await asyncio.sleep(.05)
+
+        feeder = asyncio.create_task(feed())
+        try:
+            np.testing.assert_allclose(await runtime.capture(), [.1, -.1])
+            self.assertEqual(runtime.capture_info['valid_frames'], 12)
+            self.assertGreater(runtime.capture_info['discarded_early_frames'], 0)
+            self.assertEqual(runtime.capture_info['raw_p90'], 0.)
+        finally:
+            await feeder
+
+    async def test_collection_requires_fresh_detection_and_accepts_final_blink(self):
+        from .server import Runtime, DEFAULTS
+        runtime = Runtime(dict(DEFAULTS), load_tracker())
+
+        async def feed():
+            for i in range(25):
+                observation = result((.1, -.1))
+                observation['tracker_details'] = dict(temporal_source='verified_optical_flow' if i < 10 else 'detector')
+                runtime.accept(observation if i < 24 else None)
+                await asyncio.sleep(.04)
+
+        feeder = asyncio.create_task(feed())
+        try:
+            value = await runtime.capture()
+            self.assertTrue(np.allclose(value, [.1, -.1]))
+            self.assertEqual(runtime.capture_info['valid_frames'], 14)
+            self.assertTrue(all(f['tracker_details']['temporal_source'] == 'detector' for f in runtime.capture_info['frames']))
+            runtime.accept(result(), captured_s=time.monotonic()-1.)
+            self.assertFalse(runtime.packet()['tracking'])
+            self.assertIsNone(runtime.raw)
+        finally:
+            await feeder
+
+    async def test_neutral_reference_is_required_and_reset_for_the_next_wearer(self):
+        client = TestClient(TestServer(create_app(config={'engine': 'orlosky-ecc'}, camera_enabled=False)))
+        await client.start_server()
+        runtime = client.app[RUNTIME_KEY]
+        origin = str(client.make_url('')).rstrip('/')
+        rng = np.random.default_rng(21)
+        gray = rng.integers(150, 200, (480, 640), dtype=np.uint8)
+        cv2.circle(gray, (320, 240), 100, 50, -1)
+        cv2.circle(gray, (320, 240), 35, 5, -1)
+        image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+        async def feed():
+            for _ in range(36):
+                runtime.accept(runtime.analyze(image))
+                await asyncio.sleep(.05)
+
+        async def post(data):
+            return await client.post('/api/calibration', json=data, headers={'Origin': origin})
+
+        try:
+            for _ in range(20):
+                runtime.accept(runtime.analyze(image))
+            session = (await (await post({'action': 'begin'})).json())['session_id']
+            self.assertEqual((await post({'action': 'sample', 'index': 0, 'session_id': session})).status, 400)
+            feeder = asyncio.create_task(feed())
+            response = await post({'action': 'neutral', 'session_id': session})
+            self.assertEqual(response.status, 200, await response.text())
+            await feeder
+            reference = runtime.tracker.reference.copy()
+            self.assertTrue(runtime.tracker.last['tracker_details']['motion_valid'])
+            await post({'action': 'cancel', 'session_id': session})
+            # API callers may begin again without the UI's preceding reset.
+            response = await post({'action': 'begin'})
+            self.assertEqual(response.status, 200, await response.text())
+            self.assertIsNone(runtime.tracker.reference)
+            await post({'action': 'reset'})
+            runtime.analyze(image)
+            self.assertIsNone(runtime.tracker.reference)
+            self.assertFalse(runtime.tracker.last['tracker_details']['reference_ready'])
+            self.assertEqual(reference.shape, (240, 320))
+        finally:
+            await client.close()
+
+    async def test_manual_pupil_seed_validates_and_invalidates_screen_fit(self):
+        client = TestClient(TestServer(create_app(config={'engine': 'orlosky-flow'}, camera_enabled=False)))
+        await client.start_server()
+        runtime = client.app[RUNTIME_KEY]
+        origin = str(client.make_url('')).rstrip('/')
+        image = np.full((480, 640, 3), 180, np.uint8)
+        cv2.circle(image, (320, 240), 100, (50, 50, 50), -1)
+        cv2.circle(image, (320, 240), 35, (5, 5, 5), -1)
+        try:
+            runtime.tracker.process_frame(image)
+            runtime.connected = True
+            runtime.received = time.monotonic()
+            payload = {'rectangle': [285/640, 205/480, 355/640, 275/480]}
+            for bad in ({'rectangle': [False, 0, 1, 1]}, {'rectangle': [1, 1, 0, 0]}):
+                response = await client.post('/api/tracking/seed', json=bad, headers={'Origin': origin})
+                self.assertEqual(response.status, 400)
+            runtime.calibrating = True
+            response = await client.post('/api/tracking/seed', json=payload, headers={'Origin': origin})
+            self.assertEqual(response.status, 400)
+            runtime.calibrating = False
+            runtime.model = {'old': 'fit'}
+            response = await client.post('/api/tracking/seed', json=payload, headers={'Origin': origin})
+            self.assertEqual(response.status, 200)
+            self.assertFalse(runtime.reset_pending)
+            self.assertIsNone(runtime.model)
+            self.assertEqual(list(runtime.tracker.diameters), [70.])
+        finally:
+            await client.close()
+
     async def test_refresh_reopens_usb_and_never_switches_to_builtin_camera(self):
         from .camera_device import select_usb_camera
         usb = dict(index=1, identity='usb-test', name='USB Camera', model='UVC Camera VendorID_1 ProductID_2')
@@ -103,9 +217,9 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
                     if runtime.seq:
                         break
                     await asyncio.sleep(.02)
-                state = await post('start_log')
+                state = await post('start_all')
                 identity = state['recording_id']
-                await post('start_video')
+                self.assertTrue(state['log_active'] and state['video_active'])
                 response = await client.post('/api/recording/event', headers={'Origin': origin}, json={
                     'phase': 'neutral', 'point': [.5, .5], 'client_timestamp_ms': 1000,
                     'message': '중앙 점', 'viewport': {'width': 1600, 'height': 900}})
@@ -158,7 +272,15 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
                     runtime.recording.archive('..')
                 new = await post('start_log')
                 self.assertNotEqual(new['recording_id'], identity)
-                await post('stop_log')
+                with patch.object(runtime.recording, 'start_video', side_effect=OSError('writer test failure')):
+                    failure = await client.post('/api/recording', json={'action': 'start_video'}, headers={'Origin': origin})
+                    self.assertEqual(failure.status, 400)
+                    self.assertTrue(runtime.recording.state()['log_active'])
+                await post('start_video')
+                await wait_frames(3)
+                final = await post('stop_all')
+                self.assertFalse(final['log_active'] or final['video_active'])
+                self.assertTrue(any(json.loads(line)['type'] == 'recording_error' for line in (runtime.recording.directory / 'tracking.jsonl').read_text().splitlines()))
             finally:
                 await client.close()
 
@@ -212,6 +334,19 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
             self.assertIsNotNone(report['model'])
             self.assertEqual(report['viewport'], {'width': 1600, 'height': 900})
             self.assertEqual((await post({'action': 'sample', 'index': 0, 'session_id': session})).status, 400)
+            runtime.accept(result())
+            session = (await (await post({'action': 'begin', 'viewport': {'width': 1600, 'height': 900}})).json())['session_id']
+            for i, point in enumerate(POINTS):
+                runtime.accept(result(raw_for(point)))
+                self.assertEqual((await post({'action': 'sample', 'index': i, 'session_id': session})).status, 200)
+            for i in range(4):
+                runtime.accept(result(raw_for((.9, .9))))
+                response = await post({'action': 'validate', 'validation_index': i, 'collect_all': True, 'session_id': session})
+                self.assertEqual(response.status, 200)
+            summary = await response.json()
+            self.assertFalse(summary['calibrated'])
+            self.assertEqual(len(summary['validation_errors']), 4)
+            self.assertIsNone(runtime.model)
         finally:
             await client.close()
 
@@ -270,6 +405,12 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
             status = await (await client.get('/api/status')).json()
             self.assertTrue(status['camera_connected'])
             self.assertTrue(status['pupil_detected'])
+            origin = str(client.make_url('')).rstrip('/')
+            session = runtime.session
+            response = await client.post('/api/calibration', json={'action': 'begin'}, headers={'Origin': origin})
+            self.assertEqual(response.status, 400)
+            self.assertIn('영상 파일 재생 모드', await response.text())
+            self.assertEqual(runtime.session, session)
             response = await client.get('/preview.jpg')
             self.assertEqual(response.status, 200)
             self.assertEqual(response.content_type, 'image/jpeg')
@@ -278,12 +419,139 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
 
 
 class MappingChecks(unittest.TestCase):
+    def test_fixed_reference_cancels_camera_shift_but_preserves_eye_motion(self):
+        rng = np.random.default_rng(31)
+        texture = rng.integers(150, 200, (480, 640), dtype=np.uint8)
+
+        def eye(center):
+            image = texture.copy()
+            cv2.circle(image, center, 100, 50, -1)
+            cv2.circle(image, center, 35, 5, -1)
+            return cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+        image = eye((320, 240))
+        tracker = load_tracker('orlosky-ecc')
+        for _ in range(20):
+            tracker.process_frame(image)
+        tracker.calibration_active = True
+        tracker.capture_reference()
+        tracker.process_frame(image)
+        raw = tracker.last['raw']
+        reference = tracker.reference.copy()
+        shifted = cv2.warpAffine(image, np.float32([[1, 0, 8], [0, 1, -6]]), (640, 480), borderMode=cv2.BORDER_REFLECT)
+        tracker.process_frame(shifted)
+        self.assertTrue(tracker.last['tracker_details']['motion_valid'])
+        np.testing.assert_allclose(tracker.last['tracker_details']['reference_motion_sensor_px'], [4, -3], atol=.3)
+        np.testing.assert_allclose(tracker.last['raw'], raw, atol=.005)
+        tracker.process_frame(eye((332, 240)))
+        self.assertGreater(tracker.last['raw'][0]-raw[0], .025)
+        np.testing.assert_allclose(tracker.last['tracker_details']['reference_motion_sensor_px'], [0, 0], atol=.3)
+        tracker.process_frame(np.full_like(image, 180))
+        self.assertIsNone(tracker.last['raw'])
+        np.testing.assert_array_equal(tracker.reference, reference)
+        tracker.process_frame(image)
+        self.assertTrue(tracker.last['tracker_details']['motion_valid'])
+        np.testing.assert_array_equal(tracker.reference, reference)
+
+    def test_temporal_flow_measures_translation_and_expires_without_detector(self):
+        from .routes import tracked_translation
+        rng = np.random.default_rng(7)
+        gray = rng.integers(150, 200, (480, 640), dtype=np.uint8)
+        cv2.circle(gray, (320, 240), 100, 50, -1)
+        cv2.circle(gray, (320, 240), 35, 5, -1)
+        image = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        moved = cv2.warpAffine(gray, np.float32([[1, 0, 4], [0, 1, 2]]), (640, 480))
+        flow = tracked_translation(gray, moved, np.full_like(gray, 255))
+        np.testing.assert_allclose(flow, [4, 2], atol=.2)
+        tracker = load_tracker('orlosky-flow')
+        tracker.settings['compensate_motion'] = True
+        tracker.process_frame(image)
+        tracker.diameters.extend([20.]*12)
+        tracker.seed_pupil([285/640, 205/480, 355/640, 275/480])
+        self.assertEqual(list(tracker.diameters), [70.])
+        for _ in range(20):
+            tracker.process_frame(image)
+        self.assertTrue(tracker.last['ready'])
+        original = tracker.last['raw']
+        tracker.baseline.process_frame = lambda frame: None
+        tracker.baseline.get_last_tracking_result = lambda: {'confidence': 0., 'pupil_ellipse': None}
+        for index in range(1, 5):
+            shifted = cv2.warpAffine(image, np.float32([[1, 0, 4*index], [0, 1, 2*index]]), (640, 480))
+            tracker.process_frame(shifted)
+            if index <= 3:
+                self.assertEqual(tracker.last['tracker_details']['temporal_source'], 'verified_optical_flow')
+                np.testing.assert_allclose(tracker.last['raw'], original, atol=.003)
+            else:
+                self.assertIsNone(tracker.last['pupil_ellipse'])
+        for _ in range(5):
+            tracker.process_frame(np.full_like(image, 180))
+        self.assertFalse(tracker.last['ready'])
+        self.assertTrue(tracker.last['tracker_details']['motion_reference_lost'])
+        self.assertIsNone(tracker.last.get('raw'))
+
+    def test_routes_reject_distractors_and_fit_visible_arc(self):
+        from .routes import visible_arc
+        image = np.full((480, 640, 3), 180, np.uint8)
+        cv2.circle(image, (320, 240), 100, (50, 50, 50), -1)
+        cv2.circle(image, (320, 240), 35, (5, 5, 5), -1)
+        cv2.rectangle(image, (0, 0), (150, 479), (0, 0, 0), -1)  # Hair/glasses overlap the widened eye ROI.
+        tracker = load_tracker('orlosky-stable')
+        tracker.process_frame(image)
+        detected = tracker.get_last_tracking_result()
+        self.assertLess(np.linalg.norm(np.array(detected['pupil_ellipse']['center']) - [320, 240]), 3)
+        self.assertEqual(detected['tracker_details']['input_kind'], 'pupil_center_2d')
+        for _ in range(20):
+            tracker.process_frame(image)
+        self.assertTrue(tracker.get_last_tracking_result()['ready'])
+        self.assertIsNone(tracker.score(((320., 240.), (140., 150.), 0.)))
+        tracker.calibration_active = True
+        frozen = tracker.effective_range
+        tracker.process_frame(image)
+        self.assertEqual(tracker.effective_range, frozen)
+        tracker.process_frame(np.full_like(image, 180))
+        self.assertIsNone(tracker.get_last_tracking_result()['pupil_ellipse'])
+        # Occlusion is a closing straight lid edge, not the projected pupil boundary.
+        mask = np.zeros((480, 640), np.uint8)
+        cv2.circle(mask, (320, 240), 50, 255, -1)
+        mask[:220] = 0
+        contour = max(cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0], key=cv2.contourArea)
+        reconstructed = visible_arc(contour)
+        self.assertIsNotNone(reconstructed)
+        self.assertLess(np.linalg.norm(np.array(reconstructed[0][0]) - [320, 240]), 4)
+        self.assertGreater(min(reconstructed[0][1]), 90)
+        cv2.rectangle(mask, (0, 0), (639, 479), 0, -1)
+        cv2.rectangle(mask, (200, 200), (400, 260), 255, -1)
+        rectangle = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0][0]
+        self.assertIsNone(visible_arc(rectangle))
+
+    @unittest.skipUnless(importlib.util.find_spec('torch'), 'Install requirements-routes.txt')
+    def test_ritnet_real_weights_and_class_map(self):
+        tracker = load_tracker('ritnet')
+        cap = cv2.VideoCapture(str(Path(__file__).parent / 'recordings/20261002T030107Z-11ef97b2/camera-01.avi'))
+        ok, image = cap.read()
+        cap.release()
+        if not ok:
+            cap = cv2.VideoCapture(str(Path(__file__).resolve().parents[1] / 'exhibition/assets/eye_test.mp4'))
+            ok, image = cap.read()
+            cap.release()
+        self.assertTrue(ok)
+        tracker.process_frame(image)
+        self.assertEqual(tracker.segmentation.shape, (480, 640))
+        self.assertTrue(np.isin(tracker.segmentation, [0, 1, 2, 3]).all())
+        self.assertGreater(np.sum(tracker.segmentation == 3), 20)
+        self.assertGreater(np.sum(tracker.segmentation == 2), 20)
+        self.assertFalse(tracker.get_last_tracking_result()['tracker_details']['predicted'])
+
     def test_polynomial_interpolation_and_degenerate_data(self):
         model = fit_calibration([raw_for(p) for p in POINTS], POINTS)
         for point in VALIDATION_POINTS:
             self.assertTrue(np.allclose(predict(model, raw_for(point)), point))
         with self.assertRaises(ValueError):
             fit_calibration([[0., 0.]] * 9, POINTS)
+        overlapping = [raw_for(p) for p in POINTS]
+        overlapping[8] = overlapping[5]
+        with self.assertRaisesRegex(ValueError, '전체 9점 보정 오차'):
+            fit_calibration(overlapping, POINTS)
 
     @unittest.skipUnless(importlib.util.find_spec('pupil_detectors') and importlib.util.find_spec('pypupilext'), 'Run with camera_accuracy/.venv/bin/python after install-detectors.sh')
     def test_native_detectors_choose_small_pupil_and_reject_absent_eye(self):
