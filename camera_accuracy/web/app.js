@@ -53,13 +53,14 @@ $('central-roi').onclick = () => { roi = [.25, .25, .75, .75]; drawROI(); };
 $('wide-roi').onclick = () => { roi = [.1, .25, .9, .75]; drawROI(); };
 $('auto-intensity').onchange = () => { $('intensity-range').disabled = $('auto-intensity').checked && !$('auto-intensity').disabled; };
 $('engine').onchange = () => {
- const experimental = ['orlosky-stable', 'orlosky-stable-3d', 'orlosky-flow', 'orlosky-ecc', 'orlosky-tapir', 'deepvog', 'deepvog-ecc', 'ritnet'].includes($('engine').value);
+ const experimental = ['orlosky-stable', 'orlosky-stable-3d', 'orlosky-flow', 'orlosky-ecc', 'orlosky-tapir', 'deepvog', 'deepvog-ecc', 'deepvog-verified', 'ritnet'].includes($('engine').value);
  if (experimental && roi.join() === '0,0,1,1') { roi = [.1, .25, .9, .75]; drawROI(); }
  $('auto-intensity').disabled = !['orlosky-stable', 'orlosky-stable-3d', 'orlosky-flow', 'orlosky-ecc', 'orlosky-tapir'].includes($('engine').value);
  $('auto-intensity').onchange();
  $('compensate-motion').disabled = $('engine').value !== 'orlosky-flow';
  if (['orlosky-flow', 'orlosky-ecc', 'orlosky-tapir'].includes($('engine').value)) { $('pupil-min').value = 25; $('pupil-max').value = 100; }
- if ($('engine').value.startsWith('deepvog')) { $('pupil-min').value = 10; $('pupil-max').value = 160; }
+ if ($('engine').value.startsWith('deepvog') && $('engine').value !== 'deepvog-verified') { $('pupil-min').value = 10; $('pupil-max').value = 160; }
+ if ($('engine').value === 'deepvog-verified') { $('pupil-min').value = 10; $('pupil-max').value = 320; }
  $('focal-length').disabled = !$('engine').value.endsWith('-3d');
  $('setup-message').textContent = experimental ? '비교 경로입니다. 머리카락·안경테가 제외되고 모든 주시 방향의 동공이 포함되도록 눈 영역을 확인하세요. 경로 변경 후 1→9→4를 새로 진행하세요.' : '';
 };
