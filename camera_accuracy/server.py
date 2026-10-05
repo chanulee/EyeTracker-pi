@@ -32,7 +32,7 @@ RUNTIME_KEY = web.AppKey('runtime', object)
 DEFAULTS = dict(smoothing_ms=80, max_speed=4., confidence=.65, flip=False, engine='orlosky', focal_length=560.)
 LOG = logging.getLogger('camera-accuracy')
 ENGINES = ('orlosky', 'orlosky-stable', 'orlosky-stable-3d', 'orlosky-flow', 'orlosky-ecc', 'orlosky-tapir',
-           'deepvog', 'deepvog-ecc', 'ritnet', 'pure-st', 'pupil-2d', 'pupil-3d', 'pure', 'pure-3d', 'else')
+           'deepvog', 'deepvog-ecc', 'deepvog-verified', 'ritnet', 'pure-st', 'pupil-2d', 'pupil-3d', 'pure', 'pure-3d', 'else')
 
 
 def number(value, low, high, integer=False):
@@ -47,6 +47,9 @@ def number(value, low, high, integer=False):
 
 
 def load_tracker(engine='orlosky', focal_length=560.):
+    if engine == 'deepvog-verified':
+        from .verified import VerifiedTracker
+        return VerifiedTracker()
     if engine in ('orlosky-ecc', 'orlosky-tapir', 'deepvog', 'deepvog-ecc'):
         from .research import DeepVOGTracker, ReferenceTracker
         from .routes import TemporalOrlosky
@@ -247,6 +250,7 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
                     points=POINTS, validation_points=VALIDATION_POINTS, model=runtime.report_model,
                     viewport=runtime.report_viewport, tracker_sha256=hashlib.sha256(
                         (HERE / ('tracking/Orlosky3DEyeTracker.py' if runtime.config['engine'] == 'orlosky' else
+                         'verified.py' if runtime.config['engine'] == 'deepvog-verified' else
                          'research.py' if runtime.config['engine'] in ('orlosky-ecc', 'orlosky-tapir', 'deepvog', 'deepvog-ecc') else
                          'routes.py' if runtime.config['engine'] in ('orlosky-stable', 'orlosky-stable-3d', 'orlosky-flow', 'ritnet') else 'detectors.py')).read_bytes()).hexdigest())
 
