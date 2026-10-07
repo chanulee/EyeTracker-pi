@@ -217,7 +217,9 @@ class VerifiedTracker:
         else:
             # Scheduled check, or the fast proposal failed the gate: ask DeepVOG now.
             probability = self.segmenter(gray)
-            self.segmentation = probability
+            # Preview expects 640×480 integer class labels (3 = pupil), not probabilities.
+            self.segmentation = cv2.resize(np.uint8(probability >= .5) * 3, (640, 480),
+                                           interpolation=cv2.INTER_NEAREST)
             segmented, _ = dark_core(gray, pupil_from_probability(probability))
             if proposal is not None:
                 support = ellipse_support(probability, proposal)

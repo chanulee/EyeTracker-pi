@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>1P 시선 확인</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101720;color:#eef4fc;font:16px system-ui;min-height:100vh}header{padding:24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}h1{font-size:22px}button,a{color:inherit}button{font:inherit;background:#253b50;border:1px solid #66829e;border-radius:8px;padding:10px;cursor:pointer}main{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:24px;height:65vh}.tile{display:grid;place-items:center;border:1px solid #3a526c;border-radius:20px;font-size:36px}.cursor{position:fixed;pointer-events:none;transform:translate(-50%,-50%);width:38px;height:38px;border-radius:50%;border:3px solid var(--color);box-shadow:0 0 24px var(--color)}.cursor span{position:absolute;left:40px;top:0;color:var(--color);font-weight:700;white-space:nowrap}#p1{--color:#6de5ff}#p2{--color:#ffbc76}footer{padding:24px;color:#a9bfd3}
+</style>
+<header><h1>1P 눈 카메라 · 시선 확인</h1><span id="s1">1P 연결 중</span><button id="full">전체 화면</button><a href="/admin" target="_blank" rel="noopener">관리자 ↗</a></header>
+<main><div class="tile">함께</div><div class="tile">바라보는</div><div class="tile">하나의</div><div class="tile">화면</div></main>
+<div id="p1" class="cursor" hidden><span>1P</span></div><footer>1P 시선을 하늘색으로 표시합니다. SORA는 장치를 사용하지 않는 안내 시나리오입니다. 작품은 localhost:3000에서 실행합니다.</footer>
+<script type="module">
+import {connectGaze} from '/gaze-client.js';
+const stops=[];
+for(const id of [1]){
+ const cursor=document.getElementById('p'+id),state=document.getElementById('s'+id);
+ try{
+ const r=await fetch(id===1?'/api/config':'/api/player2/config');if(!r.ok)throw Error('서버 연결 실패');const config=await r.json();
+ stops.push(connectGaze(`ws://localhost:${id===1?8080:8081}/gaze`,g=>{cursor.hidden=!g.valid;if(g.valid){cursor.style.left=g.x*innerWidth+'px';cursor.style.top=g.y*innerHeight+'px';}state.textContent=`${id}P · ${g.valid?'시선 수신 중':g.calibrated?'검출 대기':'보정 필요'}`;},status=>{if(status!=='connected')state.textContent=`${id}P · ${status==='stale'?'응답 지연':'연결 끊김'}`;},{token:config.gaze_token}));
+ }catch(error){state.textContent=`${id}P · ${error.message}`;}
+}
+document.getElementById('full').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+addEventListener('pagehide',()=>stops.forEach(stop=>stop()));
+</script></html>

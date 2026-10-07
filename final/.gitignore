@@ -1,0 +1,14 @@
+.env
+.venv/
+.venv-pi/
+state/
+logs/
+__pycache__/
+*.pyc
+frontend/node_modules/
+frontend/.next/
+frontend/.env*
+frontend/public/mediapipe/
+sensors/.venv/
+*.wav
+.DS_Store

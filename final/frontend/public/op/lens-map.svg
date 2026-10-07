@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="128" viewBox="0 0 1024 128">
+  <defs>
+    <linearGradient id="lens" x1="0" y1="0" x2="1024" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="rgb(104,128,128)" />
+      <stop offset="18%" stop-color="rgb(128,128,128)" />
+      <stop offset="82%" stop-color="rgb(128,128,128)" />
+      <stop offset="100%" stop-color="rgb(152,128,128)" />
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="128" fill="url(#lens)" />
+</svg>

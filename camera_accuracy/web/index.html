@@ -12,13 +12,18 @@ h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320p
 #status,#result{white-space:pre-wrap}#status{font:13px monospace;color:#b3c4d7}#calibration{position:fixed;inset:0;background:#131b26;z-index:5}
 #dot,#cursor{position:fixed;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
 #dot{width:30px;height:30px;background:#ff6d72;border:5px solid white}#cursor{width:24px;height:24px;border:3px solid #ffcc66}
+#cursor{z-index:8}#cursor-test{position:fixed;inset:0;background:#101925;z-index:6}
+#test-grid{position:absolute;inset:0;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(3,1fr)}.test-cell{border:1px solid #405166;color:#8196ac;padding:16px;font-size:22px;transition:background .1s}.test-cell.active{background:#175d60;color:#adfff1;box-shadow:inset 0 0 0 3px #5fe2c0}
+#calibration-results{position:fixed;inset:0;overflow:auto;background:#101925;z-index:7;padding:24px}#results-content{max-width:1000px;margin:auto}#calibration-plot{width:100%;max-height:50vh;background:#172334;border-radius:10px}#point-errors{display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0}#point-errors li{background:#24354a;padding:8px 14px;border-radius:6px}#results-warning{color:#ffcc66}
+#test-target{position:absolute;width:32px;height:32px;border-radius:50%;background:#ff6d72;border:5px solid white;transform:translate(-50%,-50%);pointer-events:none}
+#test-controls{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);width:min(700px,95vw);padding:10px;background:#1d2a3ae8;border:1px solid #52687d;border-radius:12px;text-align:center}#test-controls p{margin:4px 0 6px}#test-live{color:#ffcc66}
 #panel{position:absolute;left:50%;bottom:3%;transform:translateX(-50%);width:min(640px,calc(100vw - 24px));padding:16px;background:#1d2a3aee;border:1px solid #3c4d62;border-radius:12px;display:flex;gap:16px;align-items:center}
 #calpreview{width:150px;max-width:25vw;aspect-ratio:4/3;object-fit:contain}#message{margin-top:0}small{color:#b3c4d7}
 .record-controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.record-controls button{font-size:14px;padding:7px 10px}.record-status{display:block;color:#b3c4d7;font-size:13px;white-space:pre-wrap}.record-status.active{color:#ffcc66}.record-status.error{color:#ff8f8f}
 #preview-wrap{position:relative;width:320px;max-width:100%;aspect-ratio:4/3;touch-action:none}#roi-box{position:absolute;border:2px solid #ffcc66;pointer-events:none}#preview-wrap.selecting{cursor:crosshair}label{display:inline-block;margin:6px 8px 6px 0}input,select{font:inherit;color:inherit;background:#24354a;border:1px solid #8aa5bb;border-radius:4px;padding:4px}input{width:76px}details{margin:16px 0}#setup-message{white-space:pre-wrap;color:#ffcc66}
 @media(max-height:500px){#calpreview{width:90px}#panel{padding:8px}}
 </style>
-<header><h1>눈 카메라 · 정확도 테스트</h1><button id="start">1 → 9 → 4 시작</button><button id="fullscreen">전체 화면</button><a href="/api/report" id="download" download="eye-accuracy.json">진단 JSON 저장</a></header>
+<header><h1>눈 카메라 · 커서 테스트</h1><select id="calibration-mode" aria-label="보정 방식"><option value="quick">간단 보정 · 가로 3 × 세로 2</option><option value="standard">기존 보정 · 1 → 9 → 4</option></select><button id="start">6점 보정 → 커서 테스트</button><button id="fullscreen">전체 화면</button><a href="/api/report" id="download" download="eye-accuracy.json">진단 JSON 저장</a></header>
 <main>
  <p id="source-status" role="status">입력 소스 확인 중…</p>
  <div class="record-controls">
@@ -27,8 +32,18 @@ h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320p
   <button data-record="start_video">영상 녹화 시작</button><button data-record="stop_video" disabled>영상 녹화 종료</button>
   <a class="record-download" hidden>기록 ZIP 다운로드</a>
  </div><span class="record-status" role="status">기록 대기</span>
- <p>카메라를 맥에 연결하고 눈 영상의 타원을 확인하세요. 전체 화면이 필요하면 먼저 전환한 뒤 보정을 시작하세요. 카메라·머리·화면 위치를 유지하면서 점을 바라보세요.</p>
+ <p>눈 영상의 타원을 확인하세요. Pi 스트림 또는 Mac USB 카메라를 입력으로 사용할 수 있습니다. 전체 화면이 필요하면 먼저 전환한 뒤 보정을 시작하세요. 카메라·머리·화면 위치를 유지하면서 점을 바라보세요.</p>
  <button id="camera-feed">카메라 연결 새로고침</button>
+ <button id="camera-scan">연결된 카메라 목록 새로고침</button>
+ <p id="camera-error" role="status"></p>
+ <section id="camera-inventory" aria-label="연결된 카메라 목록">
+  <strong>Mac이 인식한 카메라</strong>
+  <p id="camera-list-status" role="status">장치 목록 확인 중…</p>
+  <ul id="camera-devices"></ul>
+  <label>연결할 카메라 <select id="camera-choice"><option value="">장치 목록 확인 중…</option></select></label>
+  <button id="camera-connect" disabled>선택한 카메라 연결</button>
+  <small>USB 카메라와 내장 카메라를 표시합니다. 장치 인식과 영상 수신은 별개입니다.</small>
+ </section>
  <div id="preview-wrap" hidden><img id="preview" alt="맥에 연결한 눈 카메라의 동공 검출 영상" hidden><div id="roi-box" hidden></div></div>
  <details><summary>동공 검출 설정 · 눈 영역 선택</summary>
   <label>검출기 <select id="engine"><option value="orlosky">기존 Orlosky (비교)</option><option value="orlosky-ecc">D + 착용자 기준 보정 (ECC)</option><option value="orlosky-tapir">D + TAPIR 주변 추적 (GPU 실험)</option><option value="deepvog-verified">DeepVOG 검증 + 지연 필터 (안정 우선)</option><option value="deepvog">DeepVOG 동공 분할 (GPU 실험)</option><option value="deepvog-ecc">DeepVOG + 착용자 기준 보정 (GPU 실험)</option><option value="orlosky-stable">Route A · Orlosky 영역·가림·후보 유지 (2D)</option><option value="orlosky-flow">Route D · Orlosky + OpenCV 연속 추적</option><option value="orlosky-stable-3d">Route B · A + Pupil Labs 3D (초점거리 미실측)</option><option value="ritnet">Route C · RITnet 동공·홍채 분할 (실험)</option><option value="pure-st">PuReST · 시간적 추적 비교</option><option value="pure">PuRe · 2D (비교)</option><option value="pure-3d">PuRe + Pupil Labs 3D (실험)</option><option value="pupil-2d">Pupil Labs · 2D</option><option value="pupil-3d">Pupil Labs · 3D (실험)</option><option value="else">ElSe · 2D (비교)</option></select></label><br>
@@ -45,12 +60,33 @@ h1{font-size:19px;margin:0}main{padding:24px;max-width:760px}#preview{width:320p
   <p><small>영역 지정 후 영상에서 눈 전체가 들어오도록 드래그하고 설정 적용을 누르세요. 좌우·상하를 볼 때도 동공이 영역 안에 있어야 합니다. 지름과 초점거리는 640×480 처리 영상의 px 기준입니다. 초점거리 기본값은 실측값이 아닙니다. 2D는 위치 고정이 필요하며, 3D도 머리와 화면 사이의 움직임을 모두 보정하지는 못합니다.</small></p>
  </details>
  <p id="setup-message" role="status"></p>
- <p id="result" role="status">중앙 1점 → 3×3 보정 9점 → 대각선 검증 4점</p>
+ <p id="result" role="status">가로 3 × 세로 2의 6점을 바라보면 바로 커서 테스트로 넘어갑니다.</p>
  <pre id="status" aria-live="off">카메라 연결 대기</pre>
  <small>타원은 동공 원판의 투영 모델입니다. 가려진 부분의 추정은 실험 단계입니다. RITnet 색상: 초록 동공 · 파랑 홍채 · 갈색 흰자. 검출 품질은 방법별 의미가 다릅니다. 화면 정확도는 대각선 검증에서 확인합니다.</small>
 </main>
 <div id="cursor" hidden></div>
-<section id="calibration" role="dialog" aria-modal="true" aria-label="1·9·4 시선 보정" hidden>
+<section id="calibration-results" aria-label="6점 보정 결과" hidden>
+ <div id="results-content">
+  <h1>6점 캘리브레이션 결과</h1>
+  <p>흰 원: 바라본 목표 · 노란 점: 보정된 시선 위치 · 연결선: 어긋난 거리</p>
+  <svg id="calibration-plot" viewBox="0 0 840 500" role="img" aria-label="목표 위치와 보정된 시선 위치 비교 그래프"></svg>
+  <p id="results-summary"></p><ul id="point-errors"></ul><p id="results-warning" role="status"></p>
+  <p><small>수집한 6점으로 계산한 학습 오차입니다. 새로운 위치에서의 정확도를 보장하지 않습니다. 오차가 커도 테스트로 이동할 수 있습니다.</small></p>
+  <button id="results-proceed">오차와 관계없이 6 × 3 커서 테스트로 이동</button> <button id="results-retry">다시 보정</button>
+ </div>
+</section>
+<section id="cursor-test" aria-label="시선 커서 자유 테스트" hidden>
+ <div id="test-grid" role="grid" aria-label="가로 6 세로 3 시선 그리드"></div>
+ <div id="test-target"></div>
+ <div id="test-controls">
+  <strong>6 × 3 시선 그리드 · 노란 커서가 있는 칸이 활성화됩니다</strong>
+  <p>칸을 클릭해 빨간 목표를 옮기고 바라보세요. 머리와 카메라는 고정하세요.</p>
+  <p id="test-live" role="status"></p>
+  <button id="test-next">다음 목표</button> <button id="test-recalibrate">6점 다시 보정</button> <button id="test-close">설정 화면</button>
+  <p><small>간단 보정 · 독립 정확도 검증 생략. 목표와의 거리는 현재 커서 위치의 참고값입니다.</small></p>
+ </div>
+</section>
+<section id="calibration" role="dialog" aria-modal="true" aria-label="시선 보정" hidden>
  <div id="dot" hidden></div>
  <div id="panel"><img id="calpreview" alt="보정 중 눈 카메라 영상" hidden><div>
   <p id="message" role="status"></p>

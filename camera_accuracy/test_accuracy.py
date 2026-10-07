@@ -6,7 +6,7 @@ import unittest
 import tempfile
 import time
 import zipfile
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 import importlib.util
 
 from aiohttp.test_utils import TestClient, TestServer
@@ -27,6 +27,157 @@ def raw_for(point):
 
 
 class BenchChecks(unittest.IsolatedAsyncioTestCase):
+    async def test_usb_replug_recovers_identity_without_selecting_builtin_or_ambiguous_camera(self):
+        from .camera_device import recover_camera
+        old = dict(index=0, identity='old-port', model='UVC Camera VendorID_1 ProductID_2', usb=True)
+        moved = dict(old, index=1, identity='new-port')
+        builtin = dict(index=0, identity='builtin', model='BuiltIn', usb=False)
+        with patch('camera_accuracy.camera_device.discover_cameras', return_value=[builtin, moved]):
+            self.assertEqual(recover_camera(old), moved)
+        with patch('camera_accuracy.camera_device.discover_cameras', return_value=[builtin]):
+            with self.assertRaises(RuntimeError): recover_camera(old)
+        with patch('camera_accuracy.camera_device.discover_cameras', return_value=[moved, dict(moved, identity='another')]):
+            with self.assertRaises(RuntimeError): recover_camera(old)
+
+    async def test_camera_recovers_failed_start_with_native_settings_and_changed_usb_port(self):
+        old = dict(index=0, identity='old-port', name='USB', model='UVC Camera VendorID_1 ProductID_2', usb=True)
+        moved = dict(old, identity='new-port', index=1)
+        opened = []
+        image = np.full((240, 320, 3), 100, np.uint8)
+        class Camera:
+            def __init__(self, index, backend):
+                self.index, self.settings = index, []
+                self.broken = not opened
+                self.released = False
+                opened.append(self)
+            def isOpened(self): return True
+            def read(self): return (False, None) if self.broken else (True, image.copy())
+            def set(self, *args): self.settings.append(args); return True
+            def get(self, key): return 0
+            def release(self): self.released = True
+        with patch('camera_accuracy.server.sys.platform', 'darwin'), patch('camera_accuracy.server.select_usb_camera', return_value=old), patch('camera_accuracy.camera_device.discover_cameras', return_value=[moved]), patch('camera_accuracy.server.cv2.VideoCapture', side_effect=Camera):
+            client = TestClient(TestServer(create_app()))
+            await client.start_server()
+            runtime = client.app[RUNTIME_KEY]
+            try:
+                for _ in range(150):
+                    if runtime.seq >= 3: break
+                    await asyncio.sleep(.05)
+                self.assertGreaterEqual(runtime.seq, 3)
+                self.assertTrue(runtime.connected)
+                self.assertEqual(len(opened), 2)
+                self.assertTrue(opened[0].released)
+                self.assertEqual(opened[1].index, 1)
+                self.assertEqual(opened[1].settings, [])
+                self.assertFalse(any(prop == cv2.CAP_PROP_FPS for prop, _ in opened[0].settings))
+                self.assertEqual(runtime.camera_info['recovery_mode'], 'device_default')
+                self.assertEqual(runtime.camera_info['device']['identity'], 'new-port')
+            finally:
+                await client.close()
+
+    async def test_quick_six_point_calibration_enters_cursor_test_without_validation(self):
+        from .gaze import QUICK_POINTS
+        client = TestClient(TestServer(create_app(camera_enabled=False)))
+        await client.start_server()
+        runtime = client.app[RUNTIME_KEY]
+        origin = str(client.make_url('')).rstrip('/')
+        try:
+            plan = await (await client.get('/api/plan?mode=quick')).json()
+            self.assertEqual(plan['points'], [list(p) for p in QUICK_POINTS])
+            self.assertEqual(plan['validation_points'], [])
+            runtime.accept(result())
+            begin = await client.post('/api/calibration', json={'action': 'begin', 'mode': 'quick', 'viewport': {'width': 1200, 'height': 800}}, headers={'Origin': origin})
+            self.assertEqual(begin.status, 200)
+            session = (await begin.json())['session_id']
+            async def command(action, **extra):
+                return await client.post('/api/calibration', json={'action': action, 'session_id': session, **extra}, headers={'Origin': origin})
+            self.assertEqual((await command('finish_quick')).status, 400)
+            runtime.capture_info = {}
+            with patch.object(runtime, 'capture', AsyncMock(side_effect=[raw_for(p) for p in QUICK_POINTS])):
+                for index in range(6):
+                    response = await command('sample', index=index)
+                    self.assertEqual(response.status, 200, await response.text())
+            response = await command('finish_quick')
+            self.assertEqual(response.status, 200)
+            self.assertFalse((await response.json())['independently_validated'])
+            self.assertTrue(runtime.model['affine'])
+            self.assertEqual(runtime.validation_errors, [])
+            self.assertTrue(np.allclose(predict(runtime.model, raw_for((.4, .6))), [.4, .6]))
+            runtime.accept(result(raw_for((.4,.6))))
+            self.assertTrue(runtime.packet()['valid'])
+            self.assertTrue(np.allclose([runtime.packet()['x'], runtime.packet()['y']], [.4,.6]))
+            poor = fit_calibration([[0,0]]*6, QUICK_POINTS, quick=True)
+            self.assertTrue(poor['warnings'])
+            self.assertGreater(poor['fit_error'], .25)
+            self.assertEqual(len(poor['fit_points']), 6)
+            self.assertTrue(np.isfinite(predict(poor,[0,0])).all())
+            # Imperfect data must remain reviewable and permit explicit cursor testing.
+            runtime.accept(result())
+            begin = await client.post('/api/calibration', json={'action': 'begin', 'mode': 'quick'}, headers={'Origin': origin})
+            session = (await begin.json())['session_id']
+            with patch.object(runtime, 'capture', AsyncMock(return_value=[0,0])):
+                for index in range(6):
+                    response = await command('sample', index=index)
+                    self.assertEqual(response.status, 200)
+            diagnostics = (await response.json())['fit_diagnostics']
+            self.assertEqual(len(diagnostics['fit_points']), 6)
+            self.assertTrue(diagnostics['warnings'])
+            self.assertIsNone(runtime.model)  # Review before proceeding.
+            self.assertEqual((await command('finish_quick')).status, 200)
+            self.assertIsNotNone(runtime.model)
+        finally:
+            await client.close()
+
+    async def test_verified_probability_preview_keeps_camera_worker_receiving(self):
+        from .verified import VerifiedTracker
+        from .test_verified import Proposer, Segmenter, PUPIL
+        tracker = VerifiedTracker(segmenter=Segmenter(), proposer=Proposer([PUPIL]))
+        video = Path(__file__).resolve().parents[1] / 'exhibition/assets/eye_test.mp4'
+        client = TestClient(TestServer(create_app(config={'engine': 'deepvog-verified'}, tracker=tracker, source=str(video))))
+        await client.start_server()
+        try:
+            runtime = client.app[RUNTIME_KEY]
+            for _ in range(100):
+                if runtime.seq >= 8: break
+                await asyncio.sleep(.02)
+            self.assertGreaterEqual(runtime.seq, 8)
+            self.assertTrue(runtime.connected)
+            self.assertEqual(tracker.segmentation.shape, (480, 640))
+            self.assertEqual(tracker.segmentation.dtype, np.uint8)
+            self.assertEqual(set(np.unique(tracker.segmentation)), {0, 3})
+            preview = await client.get('/preview.jpg')
+            self.assertEqual(preview.status, 200)
+            image = cv2.imdecode(np.frombuffer(await preview.read(), np.uint8), cv2.IMREAD_COLOR)
+            self.assertEqual(image.shape, (480, 640, 3))
+        finally:
+            await client.close()
+
+    async def test_camera_inventory_reports_usb_builtin_empty_and_discovery_failure(self):
+        from .camera_device import discover_cameras, discover_usb_cameras
+        profiler = {'SPCameraDataType': [
+            {'_name': 'Built-in', 'spcamera_unique-id': 'b', 'spcamera_model-id': 'BuiltIn'},
+            {'_name': 'USB Camera', 'spcamera_unique-id': 'a', 'spcamera_model-id': 'UVC Camera VendorID_1 ProductID_2'}]}
+        with patch('camera_accuracy.camera_device.subprocess.run') as scan:
+            scan.return_value.stdout = json.dumps(profiler)
+            devices = discover_cameras()
+            self.assertEqual([(d['index'], d['usb']) for d in devices], [(0, True), (1, False)])
+            self.assertEqual(discover_usb_cameras(), [devices[0]])
+        client = TestClient(TestServer(create_app(camera_enabled=False)))
+        await client.start_server()
+        try:
+            with patch('camera_accuracy.server.sys.platform', 'darwin'), patch('camera_accuracy.server.discover_cameras') as scan:
+                scan.return_value = devices
+                data = await (await client.get('/api/camera/devices')).json()
+                self.assertEqual(data['devices'], devices)
+                self.assertIsNone(data['error'])
+                scan.return_value = []
+                self.assertEqual((await (await client.get('/api/camera/devices')).json())['devices'], [])
+                scan.side_effect = OSError('discovery unavailable')
+                data = await (await client.get('/api/camera/devices')).json()
+                self.assertIn('discovery unavailable', data['error'])
+        finally:
+            await client.close()
+
     async def test_collection_uses_recent_stable_observations_after_a_transient(self):
         from .server import Runtime, DEFAULTS
         runtime = Runtime(dict(DEFAULTS), load_tracker())
@@ -162,7 +313,7 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
             opens.append(index)
             return FakeCamera()
 
-        with patch('camera_accuracy.server.sys.platform', 'darwin'), patch('camera_accuracy.server.select_usb_camera', return_value=usb), patch('camera_accuracy.server.cv2.VideoCapture', side_effect=open_camera):
+        with patch('camera_accuracy.server.sys.platform', 'darwin'), patch('camera_accuracy.server.select_usb_camera', return_value=usb), patch('camera_accuracy.server.recover_camera', side_effect=lambda previous: previous), patch('camera_accuracy.server.cv2.VideoCapture', side_effect=open_camera):
             client = TestClient(TestServer(create_app()))
             await client.start_server()
             runtime = client.app[RUNTIME_KEY]
@@ -184,6 +335,19 @@ class BenchChecks(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(opens, [1, 1])
                 self.assertIsNone(runtime.model)
                 self.assertEqual(runtime.camera_info['device']['identity'], 'usb-test')
+                other = dict(index=2, identity='usb-other', name='Second USB Camera', model=usb['model'])
+                with patch('camera_accuracy.camera_device.discover_cameras', return_value=[usb, other]):
+                    response = await client.post('/api/camera/refresh', json={'identity': 'usb-other'}, headers={'Origin': origin})
+                    self.assertEqual(response.status, 200)
+                    for _ in range(100):
+                        if runtime.camera_info['device']['identity'] == 'usb-other' and runtime.connected: break
+                        await asyncio.sleep(.01)
+                    self.assertEqual(opens, [1, 1, 2])
+                    self.assertEqual(runtime.camera_info['device']['identity'], 'usb-other')
+                    current = runtime.session
+                    response = await client.post('/api/camera/refresh', json={'identity': 'missing'}, headers={'Origin': origin})
+                    self.assertEqual(response.status, 400)
+                    self.assertEqual(runtime.session, current)
                 # Invalid detector requests cannot reset a valid session.
                 current = runtime.session
                 bad = await client.post('/api/detector', json={'engine': 'pure', 'roi': [0, 0, .01, 1]}, headers={'Origin': origin})

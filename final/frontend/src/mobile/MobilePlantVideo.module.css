@@ -1,0 +1,22 @@
+.slot {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: rgb(213, 255, 185);
+  pointer-events: none;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 초점 좌·상 (기존 58% 58%) + 확대 */
+  object-position: 36% 32%;
+  transform: scale(1.2);
+  transform-origin: 36% 32%;
+  background: rgb(213, 255, 185);
+  opacity: 1;
+}

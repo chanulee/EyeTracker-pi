@@ -1,0 +1,80 @@
+.hud {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 100000;
+  width: 260px;
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #e8ece9;
+  background: rgba(24, 32, 27, 0.92);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dim {
+  font-weight: 400;
+  color: #8a9a8e;
+}
+
+.row {
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.row:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.state {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 10px;
+  margin: 0;
+}
+
+.grid dt {
+  color: #8a9a8e;
+}
+
+.grid dd {
+  margin: 0;
+}
+
+.ok {
+  color: #7fd39b;
+}
+
+.bad {
+  color: #f0907f;
+}
+
+.note {
+  margin: 10px 0 0;
+  color: #8a9a8e;
+}

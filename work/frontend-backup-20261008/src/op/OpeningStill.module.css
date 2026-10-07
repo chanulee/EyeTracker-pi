@@ -1,0 +1,26 @@
+.video,
+.videoNext {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  background: #000;
+}
+
+.videoNext {
+  opacity: 0;
+}
+
+.titleBoard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  width: 4074px;
+  height: 2274px;
+  transform: translate(-50%, -50%) scale(0.96);
+  pointer-events: none;
+}

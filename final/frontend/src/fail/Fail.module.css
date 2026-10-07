@@ -1,0 +1,258 @@
+.miniQr {
+  position: absolute;
+  left: 50%;
+  top: 200px;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 196px;
+  height: 196px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.22);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.miniQr img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  object-fit: contain;
+}
+
+.veil {
+  position: absolute;
+  left: 0;
+  top: 1016px;
+  z-index: 2;
+  width: 3881px;
+  height: 1551px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+.title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 406px;
+  z-index: 4;
+  margin: 0;
+  color: #fff;
+  font-size: 135px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -3px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.subtitle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 603px;
+  z-index: 4;
+  margin: 0;
+  color: #fff;
+  font-size: 50px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -1.1px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ring {
+  position: absolute;
+  top: 1440px;
+  z-index: 3;
+  width: 826px;
+  height: 826px;
+  pointer-events: none;
+  /* 원 + 하단 라벨을 하나의 묶음으로 축소 (중심 위치 유지, 레이아웃만) */
+  transform: scale(0.38);
+  transform-origin: center center;
+}
+
+.disc,
+.check,
+.track {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 체크 표시만 아주 살짝 축소 (중앙 기준) */
+.check {
+  transform: scale(0.92);
+  transform-origin: center center;
+}
+
+.spinner {
+  position: absolute;
+  inset: 0;
+  animation: ringSpin 2.4s linear infinite;
+}
+
+.track {
+  transform-origin: 50% 50%;
+  animation: ringHead 8.4s linear infinite;
+}
+
+@keyframes ringSpin {
+  0% { transform: rotate(0deg); }
+  20% { transform: rotate(65deg); }
+  40% { transform: rotate(130deg); }
+  60% { transform: rotate(194deg); }
+  68% { transform: rotate(220deg); }
+  76% { transform: rotate(251deg); }
+  84% { transform: rotate(290deg); }
+  92% { transform: rotate(329deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes ringHead {
+  to { transform: rotate(360deg); }
+}
+
+.ringLeft {
+  left: 1097px;
+}
+
+.ringRight {
+  left: 1957px;
+}
+
+.label {
+  position: absolute;
+  left: 50%;
+  top: 866px;
+  z-index: 2;
+  margin: 0;
+  color: #e2f0e9;
+  font-size: 130px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -1.2px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.qrPair {
+  position: absolute;
+  left: 1940px;
+  top: 800px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 80px;
+  transform: translateX(-50%);
+}
+
+.qrSlot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qrFrame {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 780px;
+  height: 780px;
+  z-index: 5;
+  box-sizing: border-box;
+  overflow: hidden;
+  opacity: 1;
+  transform: none;
+  transform-origin: center;
+  border: 1.781px solid #fff;
+  border-radius: 147px;
+  box-shadow: 0 0 19.323px rgba(255, 255, 255, 0.78);
+  background:
+    radial-gradient(
+      circle 742px at 50% 50%,
+      rgba(0, 96, 134, 0.3) 0%,
+      rgba(16, 106, 142, 0.287) 6.25%,
+      rgba(32, 116, 149, 0.274) 12.5%,
+      rgba(64, 136, 164, 0.248) 25%,
+      rgba(96, 156, 180, 0.222) 37.5%,
+      rgba(128, 176, 195, 0.197) 50%,
+      rgba(191, 215, 225, 0.145) 75%,
+      rgba(255, 255, 255, 0.093) 100%
+    ),
+    linear-gradient(
+      202.318deg,
+      rgba(65, 172, 194, 0.036) 2.97%,
+      rgba(255, 255, 255, 0.12) 57.25%,
+      rgba(50, 173, 255, 0.3) 117.89%
+    );
+}
+
+/*
+ * 유리 패널 한가운데에 QR 을 놓는다. 패널 폭의 약 65%가 QR 모듈 영역이 되도록 여백을 잡았다
+ * (QR PNG 는 가장자리 여백을 포함해 모듈이 폭의 87.7%). /3 화면과 같은 값으로 맞춘다.
+ */
+.qrImageLive {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12.7%;
+  box-sizing: border-box;
+}
+
+.qrImageLive img,
+.qrImageLive p {
+  position: static;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-width: 100%;
+}
+
+.qrLoading {
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.qrGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 22.262px 21.816px rgba(255, 255, 255, 0.74),
+    inset -19.421px -19.421px 97.103px rgba(250, 151, 255, 0.58),
+    inset 0 8.014px 5.343px #fff,
+    inset -35.619px 0 36.687px rgba(254, 206, 255, 0.62),
+    inset 16.507px -23.305px 37.87px rgba(255, 255, 255, 0.6),
+    inset 0 8.905px 21.371px rgba(255, 203, 129, 0.88),
+    inset -3.562px -3.562px 15.405px rgba(255, 255, 255, 0.38),
+    inset -8.905px -8.905px 16.83px rgba(0, 0, 0, 0.25);
+}
+
+.qrGlowNabi {
+  box-shadow:
+    inset 0 22.262px 21.816px rgba(255, 255, 255, 0.74),
+    inset -19.421px -19.421px 97.103px rgba(142, 242, 105, 0.56),
+    inset 0 8.014px 5.343px #fff,
+    inset -35.619px 0 36.687px rgba(142, 242, 105, 0.56),
+    inset 16.507px -23.305px 37.87px rgba(255, 255, 255, 0.6),
+    inset 0 8.905px 21.371px rgba(255, 203, 129, 0.88),
+    inset -3.562px -3.562px 15.405px rgba(255, 255, 255, 0.38),
+    inset -8.905px -8.905px 16.83px rgba(0, 0, 0, 0.25);
+}

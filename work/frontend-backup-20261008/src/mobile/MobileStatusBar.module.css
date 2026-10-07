@@ -1,0 +1,58 @@
+/* Figma 1690:708 — 480×80, 좌·우 대칭 패딩 */
+.bar {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 480px;
+  height: 80px;
+  z-index: 5;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  padding: 27px 31px 0;
+  box-sizing: border-box;
+}
+
+.timeArea {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+}
+
+.time {
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #000;
+}
+
+.levels {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  flex: 0 0 auto;
+  color: #000;
+}
+
+.icon {
+  width: 22px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.battery {
+  width: 35px;
+  height: 17px;
+  flex-shrink: 0;
+}

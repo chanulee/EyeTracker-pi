@@ -1,0 +1,186 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/*
+ * 관람객 화면에서는 OS 마우스 포인터를 감춘다(_app.jsx 가 경로를 보고 붙인다).
+ * cursor 는 상속되므로, 눌러야 하는 요소가 따로 cursor 를 지정하면 거기서는 다시 보인다.
+ */
+html.hide-mouse-pointer,
+html.hide-mouse-pointer body {
+  cursor: none;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+html.op-discussion-transition::view-transition-group(root) {
+  animation-duration: 2600ms;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+html.op-discussion-transition::view-transition-old(root) {
+  animation: op-background-out 2600ms cubic-bezier(0.45, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+}
+
+html.op-discussion-transition::view-transition-new(root) {
+  animation: op-background-in 2600ms cubic-bezier(0.45, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+}
+
+html.op-discussion-transition::view-transition-group(op-discussion-orb) {
+  z-index: 100;
+  animation-duration: 2600ms;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+html.op-discussion-transition::view-transition-old(op-discussion-orb) {
+  height: 100%;
+  mix-blend-mode: normal;
+  object-fit: contain;
+  animation: op-orb-out 2600ms cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+html.op-discussion-transition::view-transition-new(op-discussion-orb) {
+  height: 100%;
+  mix-blend-mode: normal;
+  object-fit: contain;
+  animation: op-orb-in 2600ms cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+@keyframes op-background-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes op-background-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes op-orb-out {
+  0%,
+  38% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes op-orb-in {
+  0%,
+  22% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+html.discussion-page-transition::view-transition-group(root) {
+  animation-duration: 2200ms;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+html.discussion-page-transition::view-transition-old(root) {
+  animation: discussion-page-out 2200ms cubic-bezier(0.45, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+}
+
+html.discussion-page-transition::view-transition-new(root) {
+  animation: discussion-page-in 2200ms cubic-bezier(0.45, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+}
+
+@keyframes discussion-page-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes discussion-page-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+html.fail-four-transition::view-transition-group(root) {
+  animation-duration: 1100ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.fail-four-transition::view-transition-old(root) {
+  animation: fail-four-out 1100ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+}
+
+html.fail-four-transition::view-transition-new(root) {
+  animation: fail-four-in 1100ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  mix-blend-mode: normal;
+}
+
+@keyframes fail-four-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes fail-four-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+html.pre-opening-one-transition::view-transition-group(root) {
+  animation-duration: 1600ms;
+  animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+html.pre-opening-one-transition::view-transition-old(root) {
+  animation: pre-opening-one-out 1600ms cubic-bezier(0.42, 0, 0.58, 1) both;
+  mix-blend-mode: normal;
+}
+
+html.pre-opening-one-transition::view-transition-new(root) {
+  animation: pre-opening-one-in 1600ms cubic-bezier(0.42, 0, 0.58, 1) both;
+  mix-blend-mode: normal;
+}
+
+@keyframes pre-opening-one-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes pre-opening-one-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.op-discussion-transition::view-transition-group(root),
+  html.op-discussion-transition::view-transition-group(op-discussion-orb),
+  html.op-discussion-transition::view-transition-old(root),
+  html.op-discussion-transition::view-transition-new(root),
+  html.op-discussion-transition::view-transition-old(op-discussion-orb),
+  html.op-discussion-transition::view-transition-new(op-discussion-orb),
+  html.discussion-page-transition::view-transition-group(root),
+  html.discussion-page-transition::view-transition-old(root),
+  html.discussion-page-transition::view-transition-new(root),
+  html.fail-four-transition::view-transition-group(root),
+  html.fail-four-transition::view-transition-old(root),
+  html.fail-four-transition::view-transition-new(root),
+  html.pre-opening-one-transition::view-transition-group(root),
+  html.pre-opening-one-transition::view-transition-old(root),
+  html.pre-opening-one-transition::view-transition-new(root) {
+    animation-duration: 1ms;
+  }
+}

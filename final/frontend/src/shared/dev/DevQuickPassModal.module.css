@@ -1,0 +1,70 @@
+.shell {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 99999;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  font-family: Pretendard, system-ui, sans-serif;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(12, 16, 12, 0.88);
+  border: 1px solid rgba(193, 234, 150, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+}
+
+.shellCollapsed .bar {
+  padding: 4px 8px;
+}
+
+.toggle {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: #c1ea96;
+  color: #1a2118;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.input {
+  width: min(220px, 42vw);
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #3a4536;
+  background: #0f1210;
+  color: #e8efe4;
+  font-size: 12px;
+}
+
+.btn {
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #3a4536;
+  background: #2a3328;
+  color: #e8efe4;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btnPrimary {
+  background: #89f5ff;
+  color: #1a2118;
+  border-color: transparent;
+}
+
+.hint {
+  font-size: 10px;
+  color: #98a892;
+  white-space: nowrap;
+}

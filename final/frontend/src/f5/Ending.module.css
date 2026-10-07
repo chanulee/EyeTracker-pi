@@ -1,0 +1,558 @@
+.viewport {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  font-family: Pretendard, system-ui, sans-serif;
+}
+
+.fit {
+  position: relative;
+  flex: none;
+}
+
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3881px;
+  height: 2183px;
+  transform-origin: top left;
+  overflow: hidden;
+  background: #000;
+}
+
+/* 첫 영상이 그려지기 전까지 보이는 첫 프레임 사진. 영상(.shot)보다 아래에 깔린다. */
+.poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  object-position: center;
+}
+
+.plants {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.plantSlot {
+  position: absolute;
+  width: 917px;
+  height: 917px;
+}
+
+.slotLeft {
+  left: 813px;
+  top: 635px;
+}
+
+.slotRight {
+  left: 2083px;
+  top: 635px;
+}
+
+.orb {
+  position: absolute;
+  inset: 0;
+}
+
+.orbClip {
+  position: absolute;
+  inset: 11%;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.plant {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+}
+
+.orbRing {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 149%;
+  height: 149%;
+  max-width: none;
+  max-height: none;
+  transform: translate(-50%, -50%);
+}
+
+.light {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 1.1s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.light canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.lightOff {
+  opacity: 0;
+}
+
+.topGradient {
+  position: absolute;
+  left: 0;
+  top: -84px;
+  z-index: 2;
+  display: block;
+  width: 3881px;
+  height: 193px;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+  mix-blend-mode: plus-lighter;
+  filter: blur(55px);
+  pointer-events: none;
+}
+
+.gazeLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.9s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.gazeLayerOn {
+  opacity: 1;
+}
+
+.gazeTarget {
+  position: absolute;
+  width: 648px;
+  height: 648px;
+  transform: scale(0.86);
+  transition: transform 1.1s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+.gazeLayerOn .gazeTarget {
+  transform: scale(1);
+}
+
+.gazeTargetA {
+  left: 541px;
+  top: 1445px;
+}
+
+.gazeTargetB {
+  left: 2817px;
+  top: 1450px;
+}
+
+.gazeRingTrack {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+.gazeRingFill {
+  position: absolute;
+  inset: -27.41%;
+  display: block;
+  width: 154.82%;
+  height: 154.82%;
+  overflow: visible;
+  transition: opacity 0.4s ease;
+}
+
+.gazeRingStroke {
+  transition: stroke-dashoffset 0.35s linear;
+}
+
+.plantName {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 34px);
+  z-index: 2;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 194px;
+  height: 115px;
+  padding: 36px 46.5px;
+  border: 1.15px solid #fff;
+  border-radius: 48.8px;
+  color: #2b3a37;
+  font-size: 29.06px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.58px;
+  white-space: nowrap;
+  opacity: 0.97;
+  transform: translate(-50%, 0);
+  transition:
+    opacity 0.7s cubic-bezier(0.42, 0, 0.58, 1),
+    transform 0.7s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+.plantNameOff {
+  opacity: 0;
+  transform: translate(-50%, 24px);
+}
+
+.plantNameA {
+  background: radial-gradient(circle at 0 50%, rgba(179, 242, 131, 0.95), rgba(217, 249, 193, 0.98) 50%, #fff 100%);
+  box-shadow: 0 0 7px #fff, 0 0 11px rgba(210, 255, 214, 0.5), inset 3px 3px 35px rgba(158, 255, 84, 0.8);
+}
+
+.plantNameB {
+  border-width: 1.15px;
+  background: radial-gradient(circle at 0 50%, #bd8fe6, #dec7f2 45%, #fff 90%);
+  box-shadow: 0 0 34px #dfc0ff, inset 3px 3px 14px #a869df;
+}
+
+.agentLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.agentLayerOff {
+  opacity: 0;
+}
+
+.agentLayerLeaving .agentText {
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.agentLayerLeaving .agentBubble {
+  opacity: 0;
+  transition: opacity 0.7s cubic-bezier(0.42, 0, 0.58, 1) 0.45s;
+}
+
+.agentLayerFinal .agentOrb {
+  transition:
+    left 1.4s cubic-bezier(0.22, 0, 0.36, 1),
+    top 1.4s cubic-bezier(0.22, 0, 0.36, 1),
+    width 1.4s cubic-bezier(0.22, 0, 0.36, 1),
+    height 1.4s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+.agentBubble {
+  position: absolute;
+  z-index: 3;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 48.3px 110.653px;
+  border: 1.116px solid #fff;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.72);
+  background-image:
+    radial-gradient(ellipse 78% 190% at 50% 0%, rgba(0, 136, 255, 0.42) 0%, rgba(96, 217, 217, 0.22) 36%, rgba(255, 255, 255, 0) 68%),
+    linear-gradient(176deg, rgba(255, 255, 255, 0) 42%, rgba(237, 209, 224, 0.55) 94%),
+    linear-gradient(265deg, rgba(183, 254, 111, 0.22) 0%, rgba(255, 255, 255, 0.2) 58%, rgba(176, 248, 255, 0.55) 100%),
+    radial-gradient(ellipse 130% 160% at 8% 130%, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.92) 68%);
+  box-shadow:
+    0 0 64px #fff,
+    0 0 22px rgba(255, 255, 255, 0.78),
+    inset 0 1.5px 6px #3dd7ff,
+    inset -3px -7px 15px rgba(0, 0, 0, 0.12),
+    inset 0 9px 13px #fff;
+  transition:
+    left 1.05s cubic-bezier(0.22, 0, 0.36, 1),
+    top 1.05s cubic-bezier(0.22, 0, 0.36, 1),
+    width 1.05s cubic-bezier(0.22, 0, 0.36, 1),
+    height 1.05s cubic-bezier(0.22, 0, 0.36, 1),
+    background-color 0.8s ease,
+    box-shadow 0.8s ease;
+  will-change: left, top, width, height;
+}
+
+/* backwards만 써야 등장이 끝난 뒤 .agentBubbleGone·.agentLayerLeaving의 opacity가 먹는다. */
+.agentBubbleIntro {
+  animation: agentBubbleIn 0.9s cubic-bezier(0.22, 0, 0.36, 1) backwards;
+}
+
+/* 멘트가 없는 구간(11 → 12)으로 넘어갈 때. 글자가 빠지면 빈 말풍선이 바로 따라 사라지게 짧게 둔다. */
+.agentBubbleGone .agentText {
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.agentBubbleGone {
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.42, 0, 0.58, 1) 0.15s;
+}
+
+@keyframes agentBubbleIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.agentText {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  margin: 0;
+  font-family: Pretendard, system-ui, sans-serif;
+  font-size: 50.556px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -1.011px;
+  text-align: center;
+  white-space: pre;
+  animation: agentTextIn 0.55s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+@keyframes agentTextIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.agentTextLeft {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.agentLine {
+  display: block;
+  margin: 0;
+  white-space: pre;
+  line-height: 1.4;
+  color: #10283a;
+  background-image: linear-gradient(90deg, #002545 0%, #195f25 25.808%, #1b546b 52.404%, #061725 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.agentStrong {
+  font-weight: 700;
+}
+
+.agentOrb {
+  position: absolute;
+  z-index: 2;
+  transition:
+    left 0.7s cubic-bezier(0.22, 0, 0.36, 1),
+    top 0.7s cubic-bezier(0.22, 0, 0.36, 1),
+    width 0.7s cubic-bezier(0.22, 0, 0.36, 1),
+    height 0.7s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+/* 구체는 박스 지름의 약 61%라, 글로우는 그 바깥으로 번지게 박스보다 조금 크게 잡는다. */
+.agentOrb::before {
+  content: '';
+  position: absolute;
+  left: -6%;
+  top: -6%;
+  z-index: 0;
+  width: 112%;
+  height: 112%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.8) 44%,
+    rgba(196, 250, 255, 0.42) 60%,
+    rgba(220, 200, 255, 0.16) 78%,
+    transparent 100%
+  );
+  filter: blur(22px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.agentOrbSpeaking::before {
+  opacity: 0.75;
+  animation: agentSpeakGlow 3.2s ease-in-out infinite;
+}
+
+.agentOrb > span {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes agentSpeakGlow {
+  0%,
+  100% {
+    transform: scale(0.94);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+.agentCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: blur(2px);
+}
+
+/* 피그마 종로구18: 멈춘 마지막 영상 위에 흐림 + 푸른 방사형 막(Rectangle 2497, 50%). */
+.finalBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  -webkit-backdrop-filter: blur(12.6px);
+  backdrop-filter: blur(12.6px);
+  transition: opacity 1.2s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.finalBackdrop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background: radial-gradient(
+    ellipse 85.6% 85.6% at 50.4% 51.4%,
+    rgb(207, 219, 255) 0%,
+    rgb(143, 163, 220) 50%,
+    rgb(120, 136, 182) 62.5%,
+    rgb(96, 109, 145) 75%,
+    rgb(73, 81, 107) 87.5%,
+    rgb(50, 54, 69) 100%
+  );
+}
+
+.finalBackdrop.finalOn {
+  opacity: 1;
+}
+
+.finalPage {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.finalOn.finalPage {
+  pointer-events: auto;
+}
+
+.finalBubble {
+  position: absolute;
+  left: calc(50% + 16px);
+  top: 1143px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 67.4px 168.5px;
+  border: 1.77px solid #fff;
+  border-radius: 153px;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.2) 100%),
+    linear-gradient(175.29deg, rgba(255, 255, 255, 0) 36.667%, rgba(255, 37, 157, 0.2) 92.111%),
+    linear-gradient(190.04deg, rgba(183, 254, 111, 0.55) 11.946%, rgba(255, 255, 255, 0.6) 57.021%, rgba(176, 248, 255, 0.8) 80.526%);
+  box-shadow:
+    0 0 102px #fff,
+    0 0 255px #fff,
+    0 0 35px rgba(255, 255, 255, 0.78),
+    inset 0 14.6px 20.4px #fff;
+  opacity: 0;
+  transform: translateX(-50%) scale(0.9);
+  transition:
+    opacity 0.9s cubic-bezier(0.42, 0, 0.58, 1) 0.8s,
+    transform 1s cubic-bezier(0.22, 0, 0.36, 1) 0.8s;
+}
+
+.finalOn .finalBubble {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* 안내를 다 읽으면 글자·말풍선이 구슬과 같이 빠지고, 그 자리에 도감 카드가 들어온다. */
+.finalGone .finalBubble {
+  opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.finalText {
+  font-size: 75.8px;
+  letter-spacing: -1.52px;
+  animation: none;
+}
+
+.qrFrame {
+  position: absolute;
+  left: 50%;
+  top: 1640px;
+  width: 440px;
+  height: 440px;
+  padding: 28px;
+  box-sizing: border-box;
+  border-radius: 40px;
+  background: #fff;
+  box-shadow: 0 0 80px rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.9s cubic-bezier(0.42, 0, 0.58, 1) 1.3s;
+}
+
+.finalOn .qrFrame {
+  opacity: 1;
+}

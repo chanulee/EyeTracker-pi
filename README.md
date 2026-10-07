@@ -1,3 +1,9 @@
+# 세 프로젝트 전시 통합본
+
+새 최종 실행본은 **[final/](final/README.md)** 입니다. Seoul-Visual-Ai 작품 화면과 1P의 눈 카메라 1대·IMU·마이크를 한 폴더에 모았습니다. 2P SORA는 장치 없이 고정 안내 시나리오로 진행합니다. Mac에서 `bash final/setup-mac.sh`로 준비한 뒤 `bash final/start-mac.sh`로 실행합니다. 기존 실행 경로와 실험 코드는 아래에 보존합니다.
+
+---
+
 # 전시용 Eye Cursor — 사용자 2명 / Pi 2대 / Mac mini 1대
 
 단안·아래쪽 카메라의 **Pupil Labs 3D 방향 실험**은 `bash start-pupil.sh`로 실행합니다. 이 Mac에 별도 실행 환경을 설치했고, 관리자에 동공 타원·카메라 기준 단위 벡터·정면 기준 상대 각도를 표시합니다. [3D 실험 실행 안내](exhibition/docs/PUPIL3D_KO.md)를 참고하세요. 예시 작품에서 착용 확인·정면 안내·9점 보정·3점 검증 후 두 시선 커서를 사용할 수 있습니다. 현장 정확도·지속 24 FPS 검증은 별도입니다.

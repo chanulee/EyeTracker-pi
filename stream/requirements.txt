@@ -1,0 +1,9 @@
+# Raspberry Pi Python dependencies. OS packages are listed in README.md.
+# Compatible ranges, not a freeze of the installed Pi environment.
+sparkfun-qwiic-lsm6dso
+sparkfun-qwiic-i2c
+adafruit-blinka
+adafruit-circuitpython-bno08x
+adafruit-extended-bus
+opencv-python-headless>=4.10,<5
+numpy

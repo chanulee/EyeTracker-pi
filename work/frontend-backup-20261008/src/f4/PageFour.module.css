@@ -1,0 +1,528 @@
+.viewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c5d7ef url('/3/bg.png') center / cover no-repeat;
+}
+
+.fit {
+  position: relative;
+  flex: none;
+}
+
+.stage {
+  --bubble-seq: 5.6s;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3881px;
+  height: 2183px;
+  transform-origin: top left;
+  overflow: hidden;
+  background: transparent;
+  color: #363636;
+  font-family: Pretendard, system-ui, sans-serif;
+}
+
+.street {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(24px);
+  transform: scale(1.1);
+  transform-origin: center center;
+}
+
+.streetOn {
+  opacity: 1;
+  transition:
+    filter 3.4s cubic-bezier(0.22, 0, 0.36, 1),
+    transform 3.4s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+.streetSharp {
+  filter: blur(0);
+  transform: scale(1);
+}
+
+.streetHeld {
+  filter: blur(7.5px);
+  transform: scale(1.03);
+  transition:
+    filter 2.8s cubic-bezier(0.42, 0, 0.58, 1),
+    transform 2.8s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.bubble {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 63px 140px;
+  border: 1.733px solid #fff;
+  border-radius: 70px;
+  text-align: center;
+  white-space: nowrap;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.bubbleEnter {
+  animation: bubbleIn 0.7s linear both;
+}
+
+.bubbleLeave {
+  animation: bubbleOut 0.55s linear forwards;
+}
+
+@keyframes bubbleOut {
+  0% {
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.16, 0.7, 0.3, 1);
+  }
+  100% { opacity: 0; }
+}
+
+@keyframes bubbleIn {
+  0% {
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.18, 1.4, 0.32, 1);
+  }
+  100% { opacity: 1; }
+}
+
+.bubbleLeaveSoft {
+  z-index: 4;
+  animation: bubbleOutSoft 2.6s cubic-bezier(0.42, 0, 0.58, 1) forwards;
+}
+
+@keyframes bubbleOutSoft {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+}
+
+.bubbleTravel {
+  top: 978px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    linear-gradient(189deg, rgba(193, 234, 150, 0.2) 19.939%, rgba(255, 255, 255, 0.6) 69.818%, rgba(189, 250, 255, 0.4) 95.83%);
+  box-shadow:
+    0 0 34.494px rgba(255, 255, 255, 0.78),
+    inset 0 14.306px 9.537px #fff;
+}
+
+.bubbleDraw {
+  top: 929px;
+  background:
+    linear-gradient(172deg, rgba(255, 255, 255, 0) 36.667%, rgba(255, 37, 157, 0.15) 92.111%),
+    linear-gradient(194deg, rgba(193, 234, 150, 0.64) 19.939%, rgba(255, 255, 255, 0.48) 69.818%, rgba(137, 245, 255, 0.704) 95.83%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4));
+  box-shadow:
+    0 0 100px #fff,
+    0 0 250px #fff,
+    0 0 34.494px rgba(255, 255, 255, 0.78),
+    inset 0 14.306px 20px #fff,
+    inset 0 14.306px 9.537px #fff;
+}
+
+.copy {
+  margin: 0;
+  font-size: 70px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -1.4px;
+  text-align: center;
+}
+
+.place {
+  font-weight: 700;
+}
+
+.sproutCopy {
+  position: absolute;
+  left: 681px;
+  top: 230px;
+  z-index: 3;
+  width: 2518px;
+  opacity: 0;
+  transform: translateY(16px);
+  text-align: center;
+  pointer-events: none;
+}
+
+.sproutSequence {
+  animation: headlineFill var(--bubble-seq) linear forwards;
+}
+
+@keyframes headlineFill {
+  0%, 80% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  80% {
+    animation-timing-function: cubic-bezier(0.16, 0.8, 0.32, 1);
+  }
+  89%, 100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sproutTitle,
+.sproutSub {
+  margin: 0;
+}
+
+.sproutTitle {
+  color: #efffe4;
+  font-size: 130px;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: -2.6px;
+}
+
+.sproutTitle b {
+  font-weight: 700;
+}
+
+.sproutSub {
+  margin-top: 26px;
+  color: #fff;
+  font-size: 60px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -1.2px;
+}
+
+.gangnamTitle,
+.gangnamSub,
+.mapoTitle,
+.mapoSub {
+  display: block;
+  width: 2518px;
+  overflow: visible;
+}
+
+.gangnamTitle,
+.mapoTitle {
+  height: 169px;
+}
+
+.gangnamSub,
+.mapoSub {
+  height: 84px;
+  margin-top: 26px;
+}
+
+.plantSlot {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.slotLeft,
+.slotRight {
+  width: 917px;
+  height: 917px;
+  transform-origin: center center;
+}
+
+.slotLeft {
+  left: 813px;
+  top: 635px;
+}
+
+.slotRight {
+  left: 2083px;
+  top: 635px;
+}
+
+.slotLeft.slotSequence {
+  animation:
+    slotLeftPop var(--bubble-seq) linear both,
+    slotFade 2.6s cubic-bezier(0.42, 0, 0.58, 1) both;
+}
+
+.slotRight.slotSequence {
+  animation:
+    slotRightPop var(--bubble-seq) linear both,
+    slotFade 2.6s cubic-bezier(0.42, 0, 0.58, 1) both;
+}
+
+@keyframes slotFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slotLeftPop {
+  0% {
+    transform: translate(-37px, 48px) scale(0.74);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  22% {
+    transform: translate(-37px, 48px) scale(0.795);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  32% {
+    transform: translate(-37px, 48px) scale(0.795);
+    animation-timing-function: cubic-bezier(0.45, 0.02, 0.55, 1);
+  }
+  78%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes slotRightPop {
+  0% {
+    transform: translate(55px, 48px) scale(0.74);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  22% {
+    transform: translate(55px, 48px) scale(0.795);
+    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
+  }
+  32% {
+    transform: translate(55px, 48px) scale(0.795);
+    animation-timing-function: cubic-bezier(0.45, 0.02, 0.55, 1);
+  }
+  78%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.orb {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.slotLeft.slotSequence .orb {
+  animation: orbFloatLeft 4.6s ease-in-out var(--bubble-seq) infinite;
+}
+
+.slotRight.slotSequence .orb {
+  animation: orbFloatRight 5.1s ease-in-out calc(var(--bubble-seq) + 0.3s) infinite;
+}
+
+@keyframes orbFloatLeft {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  48% {
+    transform: translate3d(0, -54px, 0);
+  }
+  72% {
+    transform: translate3d(0, -35px, 0);
+  }
+}
+
+@keyframes orbFloatRight {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  42% {
+    transform: translate3d(0, -40px, 0);
+  }
+  68% {
+    transform: translate3d(0, -62px, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slotLeft.slotSequence .orb,
+  .slotRight.slotSequence .orb {
+    animation: none;
+  }
+}
+
+.orbClip {
+  position: absolute;
+  inset: 11%;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.orbRing {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: 149%;
+  height: 149%;
+  max-width: none;
+  max-height: none;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: opacity 1.8s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+.orbRingFade {
+  opacity: 0;
+}
+
+.orbRingClear {
+  opacity: 0;
+}
+
+.orbRingClearOn {
+  opacity: 1;
+}
+
+.orbSwirl {
+  position: absolute;
+  inset: 5%;
+  z-index: 2;
+  width: auto;
+  height: auto;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.8s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+.orbSwirlOn {
+  opacity: 1;
+}
+
+.plant {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transform-origin: center center;
+}
+
+.plantUserDrawing {
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.plantPicked {
+  object-fit: contain;
+}
+
+.nameText {
+  display: inline-block;
+  opacity: 0;
+  transform-origin: center center;
+}
+
+.slotSequence .plant,
+.slotSequence .nameText {
+  animation: contentPop var(--bubble-seq) linear both;
+}
+
+.slotSequence .namePill {
+  animation: pillPop var(--bubble-seq) linear both;
+}
+
+@keyframes contentPop {
+  0%, 80% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  80% {
+    animation-timing-function: cubic-bezier(0.18, 1.35, 0.32, 1);
+  }
+  89% {
+    opacity: 1;
+    transform: scale(1.06);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.5, 1);
+  }
+  95%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pillPop {
+  0%, 80% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.82);
+  }
+  80% {
+    animation-timing-function: cubic-bezier(0.18, 1.35, 0.32, 1);
+  }
+  89% {
+    opacity: 0.97;
+    transform: translateX(-50%) scale(1.05);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.5, 1);
+  }
+  95%, 100% {
+    opacity: 0.97;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.namePill {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 48px);
+  margin: 0;
+  padding: 62px 80px;
+  border: 2px solid #fff;
+  border-radius: 84px;
+  color: #2b3a37;
+  font-size: 50px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -1px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-50%);
+  transform-origin: center center;
+}
+
+.nameLilac {
+  background:
+    radial-gradient(
+      ellipse 157% 74% at -18% 50%,
+      rgba(189, 143, 230, 0.9) 0%,
+      rgba(255, 255, 255, 0.9) 90%
+    );
+  box-shadow:
+    0 0 59.4px #dfc0ff,
+    inset 7.49px 7.49px 18.72px rgba(255, 255, 255, 0.7),
+    inset 5.62px 5.62px 24.34px #a869df,
+    inset 0 -11.23px 14.98px #fff;
+}
+
+.nameMint {
+  background:
+    radial-gradient(
+      ellipse 121% 439% at -17% 45%,
+      rgba(179, 242, 131, 0.855) 0%,
+      rgba(255, 255, 255, 0.9) 100%
+    );
+  box-shadow:
+    0 0 19.44px rgba(210, 255, 214, 0.5),
+    0 0 11.8px #fff,
+    inset 21.99px 16.82px 13.64px rgba(255, 255, 255, 0.4),
+    inset 4.71px 4.71px 60.1px rgba(158, 255, 84, 0.8),
+    inset 0 -12px 24.11px #fff,
+    inset 14px 7px 5.2px rgba(255, 255, 255, 0.5);
+}

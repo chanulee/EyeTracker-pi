@@ -1,0 +1,16 @@
+.canvas {
+  position: absolute;
+  inset: -20px;
+  width: calc(100% + 40px);
+  height: calc(100% + 40px);
+  z-index: 3;
+  display: block;
+  pointer-events: none;
+  opacity: 0.9;
+  filter: blur(14px);
+  transition: opacity 0.85s ease;
+}
+
+.canvasFading {
+  opacity: 0;
+}

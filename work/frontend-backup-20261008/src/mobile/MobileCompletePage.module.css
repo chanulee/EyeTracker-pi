@@ -1,0 +1,271 @@
+.artboard {
+  position: relative;
+  width: 480px;
+  height: 1044px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-color: #ffffff;
+  background:
+    linear-gradient(
+      167.648deg,
+      rgb(213, 255, 185) 0%,
+      rgba(213, 255, 185, 0.65) 6%,
+      rgba(255, 255, 255, 0.96) 24%,
+      rgba(255, 255, 255, 0.96) 74%,
+      rgba(177, 214, 154, 0.5) 100%,
+      rgba(162, 180, 151, 0.77) 100%
+    ),
+    #ffffff;
+}
+
+.copy {
+  position: absolute;
+  left: 38px;
+  top: 89px;
+  width: 382px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #3c4b38;
+  word-break: keep-all;
+}
+
+.title {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.8px;
+  color: #3c4b38;
+}
+
+.lead {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.4px;
+  color: #3c4b38;
+}
+
+.leadLine {
+  margin: 0;
+}
+
+.leadStrong {
+  font-weight: 700;
+}
+
+.blobStack {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.blobDisc {
+  position: absolute;
+  left: 50%;
+  top: 316px;
+  width: 355px;
+  height: 355px;
+  transform: translateX(-50%) scale(1.18);
+  transform-origin: center center;
+}
+
+.blobHalo {
+  position: absolute;
+  inset: -26%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(213, 255, 185, 0.85) 0%,
+    rgba(180, 230, 150, 0.45) 42%,
+    rgba(255, 255, 255, 0) 72%
+  );
+  filter: blur(8px);
+  opacity: 0.95;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.plantClip {
+  position: absolute;
+  inset: -8%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.plantFrame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+.plantImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+}
+
+.nameChipSlot {
+  position: absolute;
+  left: 50%;
+  top: 730px;
+  z-index: 4;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.noticeBox {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: 420px;
+  padding: 20px 24px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 30px rgba(60, 75, 56, 0.08);
+  text-align: center;
+}
+
+.badgeRow {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.completedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(45, 90, 31, 0.1);
+  color: #2d5a1f;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.checkIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.noticeText {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -0.3px;
+  color: #4a5d46;
+  word-break: keep-all;
+}
+
+.noticeSub {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #7b8e78;
+}
+
+@keyframes completeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes completeChipIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes completeNoticeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.artboardEnter .copy {
+  opacity: 0;
+  animation: completeFadeIn 0.8s ease-out 0.05s forwards;
+}
+
+.artboardEnter .blobStack {
+  opacity: 0;
+  animation: completeFadeIn 0.85s ease-out 0.12s forwards;
+}
+
+.artboardEnter .nameChipSlot {
+  opacity: 0;
+  animation: completeChipIn 0.85s ease-out 0.18s forwards;
+}
+
+.artboardEnter .noticeBox {
+  opacity: 0;
+  animation: completeNoticeIn 0.85s ease-out 0.24s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artboardEnter .copy,
+  .artboardEnter .blobStack,
+  .artboardEnter .noticeBox {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+  .artboardEnter .nameChipSlot {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: translateX(-50%);
+  }
+  .artboardEnter .noticeBox {
+    transform: translateX(-50%);
+  }
+}

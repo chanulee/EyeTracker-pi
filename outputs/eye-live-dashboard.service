@@ -1,0 +1,23 @@
+[Unit]
+Description=Eye Pi microphone IMU USB camera dashboard (8090)
+Wants=network-online.target avahi-daemon.service
+After=network-online.target sound.target avahi-daemon.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=admin
+SupplementaryGroups=gpio i2c audio video
+WorkingDirectory=/home/admin/eye-live-dashboard
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStartPre=+/usr/bin/pinctrl set 23,24 pu
+ExecStart="/home/admin/lsm6dso-venv/bin/python" "/home/admin/eye-live-dashboard/lsm6dso_live.py" --i2c-bus=3 --port=8090
+Restart=always
+RestartSec=3
+KillMode=control-group
+TimeoutStopSec=10
+UMask=0022
+
+[Install]
+WantedBy=multi-user.target

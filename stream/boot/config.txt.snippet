@@ -1,0 +1,8 @@
+# Relevant settings only. Merge into /boot/firmware/config.txt; do not replace it.
+# Install i2smic.dtbo first. Do not duplicate existing entries.
+[all]
+dtparam=i2c_arm=on
+dtparam=i2c_arm_baudrate=100000
+dtoverlay=i2smic
+dtoverlay=i2c-gpio,bus=3,i2c_gpio_sda=23,i2c_gpio_scl=24
+dtoverlay=dwc2,dr_mode=host

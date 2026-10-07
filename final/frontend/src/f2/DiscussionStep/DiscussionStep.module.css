@@ -1,0 +1,964 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+.discussionStep {
+  position: relative;
+  z-index: 1;
+  height: 100dvh;
+  min-height: 100vh;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: Pretendard, 'Pretendard Variable', sans-serif;
+}
+
+.header {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  max-width: 640px;
+  padding: 10px 18px;
+  border-radius: 16px;
+  background: rgba(247, 246, 242, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.subtitle {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #66bb7a;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 10px;
+  font-size: clamp(17px, 2vw, 22px);
+  font-weight: 450;
+  color: #2e2e2e;
+  line-height: 1.4;
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6b6b6b;
+  line-height: 1.5;
+}
+
+.canvasArea {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+}
+
+.streetVeil {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  opacity: 1;
+  pointer-events: auto;
+  background: transparent;
+  transition: opacity 1.8s ease;
+}
+
+.introOrb {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  width: min(270px, 36vw);
+  height: min(272px, 36.3vw);
+  aspect-ratio: 675 / 679;
+  transform: translate(-50%, -50%) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  background: transparent;
+  transition: opacity 1s ease, transform 1s ease;
+}
+
+.introOrbVisible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.streetVeilGone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.promptOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px;
+  border-radius: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(247, 246, 242, 0.18),
+    rgba(247, 246, 242, 0.42)
+  );
+  backdrop-filter: blur(2px);
+  text-align: center;
+}
+
+.promptText {
+  margin: 0;
+  max-width: 480px;
+  font-size: clamp(15px, 2vw, 18px);
+  font-weight: 450;
+  color: #2e2e2e;
+  line-height: 1.6;
+}
+
+.promptBtn {
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(102, 187, 122, 0.4);
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d6a3e;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transition: background 200ms ease;
+}
+
+.promptBtn:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.secondaryHint {
+  margin: 0;
+  font-size: 12px;
+  color: #6b6b6b;
+}
+
+.inputArea {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.speechStatus {
+  min-height: 20px;
+}
+
+.listening {
+  font-size: 12px;
+  color: #4caf6d;
+  letter-spacing: 0.02em;
+}
+
+.paused,
+.fallback {
+  font-size: 12px;
+  color: #6b6b6b;
+}
+
+.liveTranscript {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #2e2e2e;
+  font-style: italic;
+}
+
+.submitHint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.manualRow {
+  display: flex;
+  gap: 8px;
+}
+
+.textInput {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+  color: #2e2e2e;
+  outline: none;
+  transition: border-color 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.textInput:focus {
+  border-color: rgba(102, 187, 122, 0.5);
+}
+
+.submitBtn,
+.micBtn,
+.nextBtn,
+.skipBtn {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+  color: #2e2e2e;
+  cursor: pointer;
+  transition:
+    background 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.submitBtn:hover,
+.micBtn:hover,
+.nextBtn:hover,
+.skipBtn:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.nextBtn {
+  margin-top: 8px;
+  color: #66bb7a;
+  letter-spacing: 0.02em;
+}
+
+.followUpArea {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .discussionStep {
+    min-height: 100dvh;
+    height: 100dvh;
+    padding: 0;
+  }
+
+  .canvasArea {
+    position: fixed;
+  }
+}
+
+.agentBubble {
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(102, 187, 122, 0.25);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(76, 175, 109, 0.08);
+}
+
+.agentRow {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.agentOrb {
+  display: block;
+  width: 88px;
+  height: 88px;
+  flex: none;
+}
+
+.turnNote {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #3d5344;
+}
+
+.agentLabel {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(102, 187, 122, 0.15);
+  font-size: 11px;
+  font-weight: 600;
+  color: #2d6a3e;
+  letter-spacing: 0.04em;
+}
+
+.agentQuestion {
+  margin: 0;
+  font-size: clamp(14px, 1.8vw, 17px);
+  color: #2e2e2e;
+  line-height: 1.65;
+}
+
+.agentSpeaking {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #4caf6d;
+}
+
+.replayBtn,
+.skipBtn {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  color: #4a4a4a;
+  cursor: pointer;
+}
+
+.replayBtn:hover,
+.skipBtn:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.skipBtn {
+  flex-shrink: 0;
+}
+
+.micBtn {
+  padding: 10px 12px;
+}
+
+.veil {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: transparent;
+  transition: opacity 1.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.veilOff {
+  opacity: 0;
+}
+
+.hudViewport {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.hudFit {
+  position: relative;
+  flex: none;
+}
+
+.hudStage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3881px;
+  height: 2183px;
+  transform-origin: top left;
+  font-family: Pretendard, 'Pretendard Variable', sans-serif;
+}
+
+.turn {
+  position: absolute;
+  left: 1941px;
+  top: 101px;
+  width: max-content;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.turnOn,
+.placeOn,
+.promptOn {
+  opacity: 1;
+}
+
+.profileSlot {
+  position: relative;
+  width: 287px;
+  height: 149px;
+  flex: none;
+}
+
+.profile,
+.profileB {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 352px;
+  height: 352px;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  transform: translate3d(-50%, -50%, 0);
+  opacity: 0;
+  pointer-events: none;
+  backface-visibility: hidden;
+  will-change: opacity;
+  transition: opacity 1.4s cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.profileShown {
+  opacity: 1;
+}
+
+.turnRest .profileShown {
+  opacity: 0.4;
+}
+
+.turnLabel {
+  margin: 0;
+  color: #fff;
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.38);
+  transition: opacity 0.7s ease;
+}
+
+.turnRest .turnLabel {
+  opacity: 0;
+}
+
+.placeChip {
+  position: absolute;
+  left: 3060px;
+  top: 127px;
+  display: flex;
+  align-items: center;
+  color: #fff;
+  font-size: 39px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.placeOn {
+  opacity: 1;
+}
+
+.placePin {
+  width: 87px;
+  height: 87px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+
+.placePin img {
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+
+.calibrationGuide {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.calibrationCard {
+  position: absolute;
+  left: 50%;
+  top: 752px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  padding: 36px 64px;
+  border: 1.733px solid transparent;
+  border-radius: 64px;
+  color: #363636;
+  background:
+    linear-gradient(
+        190deg,
+        rgba(193, 234, 150, 0.4) 0%,
+        rgba(255, 255, 255, 0.34) 65.725%,
+        rgba(189, 250, 255, 0.52) 100%
+      )
+      padding-box,
+    linear-gradient(190deg, #fff 0%, rgba(255, 255, 255, 0.5) 100%) border-box;
+  -webkit-backdrop-filter: blur(26px) saturate(130%);
+  backdrop-filter: blur(26px) saturate(130%);
+  box-shadow:
+    0 0 34.4938px rgba(255, 255, 255, 0.78),
+    inset 0 14.3062px 9.53748px #fff;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate3d(-50%, 22px, 0) scale(0.985);
+  backface-visibility: hidden;
+  will-change: opacity, transform;
+  transition:
+    opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0.85s;
+}
+
+.calibrationCard p {
+  margin: 0;
+  text-align: center;
+  font-size: 50px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -1px;
+  white-space: nowrap;
+}
+
+.calibrationCard strong {
+  font-weight: 700;
+}
+
+.calibrationCardNabi {
+  width: 1720px;
+  height: 352px;
+}
+
+.calibrationCardHandoff {
+  width: 1340px;
+  height: 282px;
+}
+
+.calibrationCardComplete {
+  width: 1560px;
+  height: 282px;
+}
+
+.calibrationCardOn {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(-50%, 0, 0) scale(1);
+  transition:
+    opacity 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.05s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s;
+}
+
+.promptBlock {
+  position: absolute;
+  left: 50%;
+  top: 1401px;
+  width: max-content;
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transform: translate3d(-50%, 16px, 0);
+  transition:
+    opacity 0.18s cubic-bezier(0.22, 0, 0.36, 1),
+    transform 0.18s cubic-bezier(0.22, 0, 0.36, 1);
+}
+
+.promptOn {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
+}
+
+.promptShell {
+  position: relative;
+  box-sizing: border-box;
+  width: max-content;
+  padding: 72px 96px;
+  border: 1.5px solid #fff;
+  border-radius: 59px;
+  background:
+    linear-gradient(191deg, rgba(193, 234, 150, 0.84) 17%, rgba(255, 255, 255, 0.7) 80%);
+  box-shadow:
+    0 40px 21px rgba(130, 130, 130, 0.25),
+    0 0 26px rgba(255, 255, 255, 0.78),
+    inset 0 30px 29px rgba(255, 255, 255, 0.74),
+    inset -12px 0 20px rgba(114, 61, 196, 0.36),
+    inset 0 11px 7px #fff,
+    inset -48px 0 49px rgba(254, 206, 255, 0.39),
+    inset 22px -31px 51px rgba(255, 255, 255, 0.6),
+    inset 0 12px 29px rgba(255, 203, 129, 0.55),
+    inset -12px -12px 23px rgba(0, 0, 0, 0.18);
+  transition:
+    width 0.7s cubic-bezier(0.45, 0, 0.2, 1),
+    height 0.7s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+.promptShell .promptText {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  text-align: center;
+  color: #6B6A6A;
+  font-size: 52px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: -1px;
+  text-shadow: 0 1px 2px rgba(40, 60, 20, 0.35);
+  opacity: 0;
+  transform: translate3d(-50%, -50%, 0);
+  transition: opacity 0.18s cubic-bezier(0.22, 0, 0.36, 1);
+  animation: none;
+}
+
+.promptShell .promptTextOn {
+  opacity: 1;
+}
+
+.orbSlot {
+  position: absolute;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  view-transition-name: op-discussion-orb;
+  transition:
+    top 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    width 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    height 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.8s ease;
+}
+
+:global(html.discussion-page-transition) .orbSlot {
+  view-transition-name: none;
+}
+
+.orbFinale {
+  transition:
+    top 1.85s cubic-bezier(0.16, 1.22, 0.28, 1),
+    width 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.62s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.8s ease;
+}
+
+.orbSlot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  border: 1.7px solid rgba(255, 255, 255, 0.92);
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(189deg, rgba(193, 234, 150, 0.64) 20%, rgba(255, 255, 255, 0.48) 70%, rgba(137, 245, 255, 0.7) 96%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4));
+  box-shadow:
+    -10px 10px 30px rgba(255, 144, 238, 0.25),
+    0 0 100px #fff,
+    0 0 34px rgba(255, 255, 255, 0.78),
+    inset 0 14px 20px #fff;
+  transition: opacity 0.4s ease 0.08s;
+}
+
+.orbPill::after {
+  opacity: 1;
+}
+
+.orbSlot.orbPill .agentFace {
+  opacity: 0;
+  transition: opacity 0.85s ease 0.18s;
+}
+
+.orbCopy {
+  position: relative;
+  z-index: 3;
+  margin: 0;
+  opacity: 0;
+  text-align: center;
+  white-space: nowrap;
+  font-family: Pretendard, sans-serif;
+  font-size: 75px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -1.5px;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  background: linear-gradient(90deg, #004989 0%, #1e672a 19.122%, #32748d 52.404%, #001323 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.orbPill .orbCopy {
+  animation: copyIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.68s both;
+}
+
+@keyframes copyIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.orbGone {
+  opacity: 0;
+}
+
+.orbPulse {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+}
+
+.orbLively {
+  animation: flow1Pulse 1.55s ease-in-out infinite;
+}
+
+@keyframes flow1Pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+.orbCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.visionCard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 675px;
+  height: 679px;
+  margin-left: -337.5px;
+  margin-top: -339.5px;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: center center;
+  transition:
+    transform 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.7s ease;
+}
+
+.visionOrb {
+  width: 675px;
+  height: 679px;
+}
+
+.visionOrb svg {
+  display: block;
+  width: 675px;
+  height: 679px;
+}
+
+.orbIsAgent .visionCard {
+  opacity: 0;
+}
+
+.agentFace {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.orbIsAgent .agentFace {
+  opacity: 1;
+}
+
+.introAgent {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.introAgentOn {
+  opacity: 1;
+}
+
+.orbIntro .agentFace {
+  opacity: 0;
+}
+
+.caption {
+  position: absolute;
+  left: 50%;
+  top: 1375px;
+  width: max-content;
+  margin: 0;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #2a312d;
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1.65;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.captionOn {
+  opacity: 1;
+}
+
+.closingBubble {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity 0.8s ease;
+}
+
+.closingLeave {
+  opacity: 0;
+}
+
+.closingBubble p {
+  margin: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.closingTalk {
+  top: 1219px;
+  width: max-content;
+  max-width: 1400px;
+  padding: 72px 96px;
+  border: 1.5px solid #fff;
+  border-radius: 59px;
+  color: #6B6A6A;
+  font-size: 52px;
+  font-weight: 600;
+  line-height: 1.6;
+  letter-spacing: -1px;
+  text-shadow: 0 1px 2px rgba(40, 60, 20, 0.35);
+  background: linear-gradient(191deg, rgba(193, 234, 150, 0.84) 17%, rgba(255, 255, 255, 0.7) 80%);
+  box-shadow:
+    0 40px 21px rgba(130, 130, 130, 0.25),
+    0 0 26px rgba(255, 255, 255, 0.78),
+    inset 0 30px 29px rgba(255, 255, 255, 0.74),
+    inset -12px 0 20px rgba(114, 61, 196, 0.36),
+    inset 0 11px 7px #fff,
+    inset -48px 0 49px rgba(254, 206, 255, 0.39),
+    inset 22px -31px 51px rgba(255, 255, 255, 0.6),
+    inset 0 12px 29px rgba(255, 203, 129, 0.55),
+    inset -12px -12px 23px rgba(0, 0, 0, 0.18);
+  animation: closingIn 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.closingPill {
+  top: 978px;
+  width: 1339px;
+  height: 227px;
+  padding: 0 72px;
+  border: 1.7px solid #fff;
+  border-radius: 150px;
+  background:
+    linear-gradient(189deg, rgba(193, 234, 150, 0.64) 20%, rgba(255, 255, 255, 0.48) 70%, rgba(137, 245, 255, 0.7) 96%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4));
+  box-shadow:
+    -10px 10px 30px rgba(255, 144, 238, 0.25),
+    0 0 100px #fff,
+    0 0 34px rgba(255, 255, 255, 0.78),
+    inset 0 14px 20px #fff;
+  animation: pillIn 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.closingPill p {
+  font-size: 75px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -1.5px;
+  background: linear-gradient(90deg, #004989 0%, #1e672a 19%, #32748d 52%, #001323 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.closingWide {
+  width: 2082px;
+}
+
+@keyframes pillIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.62);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.composer {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 9;
+  display: flex;
+  gap: 8px;
+  width: min(520px, 72vw);
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+@keyframes closingIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}

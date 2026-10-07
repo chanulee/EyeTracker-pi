@@ -1,0 +1,37 @@
+/* /2 토론이 끝난 뒤 수집된 의견을 보여주는 화면 전용 스타일. */
+
+.doneStep {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  text-align: center;
+}
+
+.doneTitle {
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 450;
+}
+
+.doneDesc {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: #6b6b6b;
+}
+
+.donePreview {
+  max-width: 90vw;
+  max-height: 40vh;
+  overflow: auto;
+  text-align: left;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}

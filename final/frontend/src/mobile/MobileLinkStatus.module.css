@@ -1,0 +1,23 @@
+.banner {
+  position: fixed;
+  left: 50%;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  z-index: 20;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #3c4b38;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+.paired {
+  color: #2d5a1f;
+  background: rgba(213, 255, 185, 0.92);
+}

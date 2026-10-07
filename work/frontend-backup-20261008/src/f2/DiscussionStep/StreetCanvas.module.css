@@ -1,0 +1,600 @@
+.canvasWrapper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.textFilterDefs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  overflow: visible;
+  box-shadow: none;
+  border: 0;
+}
+
+.imageFrame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.streetBlur {
+  position: absolute;
+  inset: 0;
+  filter: blur(20px);
+  transform: scale(1.12);
+  transform-origin: center center;
+  transition:
+    filter 1.15s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.streetSharp {
+  filter: blur(0px);
+  transform: scale(1);
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: 0;
+  pointer-events: auto;
+}
+
+.panorama {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  opacity: 0;
+}
+
+.panoramaReady {
+  opacity: 1;
+}
+
+.imageVeiled {
+  filter: blur(8px);
+  transform: scale(1.04);
+}
+
+.pendingScene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #8cb9db;
+  color: #173044;
+  font-size: 22px;
+}
+
+.plantMark {
+  position: absolute;
+  z-index: 4;
+  width: calc(146px * var(--street-scale, 0.5));
+  height: calc(146px * var(--street-scale, 0.5));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: tagIn 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.markGather {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.markFloat {
+  animation: markDrift var(--drift-dur, 4.8s) ease-in-out infinite;
+  animation-delay: var(--drift-delay, 0s);
+}
+
+@keyframes markDrift {
+  0%,
+  100% {
+    margin-left: 0;
+    margin-top: 0;
+  }
+  50% {
+    margin-left: var(--drift-x, 12px);
+    margin-top: var(--drift-y, -24px);
+  }
+}
+
+.finaleOrb {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition:
+    left 1.9s cubic-bezier(0.16, 1.12, 0.32, 1),
+    top 1.9s cubic-bezier(0.16, 1.12, 0.32, 1),
+    width 1.9s cubic-bezier(0.16, 1.12, 0.32, 1),
+    height 1.9s cubic-bezier(0.16, 1.12, 0.32, 1),
+    opacity 0.8s ease;
+}
+
+.finaleHalo,
+.finaleCore {
+  position: absolute;
+  display: block;
+  max-width: none;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+.finaleHalo {
+  left: var(--halo-inset);
+  top: var(--halo-inset);
+  width: var(--halo-size);
+  height: var(--halo-size);
+  filter: blur(calc(var(--halo-blur) * var(--street-scale, 0.5)));
+}
+
+.finaleCore {
+  left: var(--core-left);
+  top: var(--core-top);
+  width: var(--core-width);
+  height: var(--core-height);
+}
+
+.markQuiet .speech {
+  opacity: 0;
+}
+
+.markTuck .bubble {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.markTuck.markA .speech,
+.markTuck.markB .speech {
+  left: 0;
+  right: auto;
+  top: calc(100% + 10px * var(--street-scale, 0.5));
+  width: max-content;
+  align-items: flex-start;
+  animation: none;
+  transform: none;
+  transition:
+    left 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    right 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.markTuck.markA .replies,
+.markTuck.markB .replies {
+  position: relative;
+  left: 0;
+  right: auto;
+  top: auto;
+  width: max-content;
+  align-self: flex-start;
+  justify-content: flex-start;
+}
+
+.badge {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.badgeRing,
+.badgeFace {
+  position: absolute;
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.badgeRing {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.badgeFace {
+  left: 3%;
+  top: 3%;
+  width: 94%;
+  height: 94%;
+}
+
+.speech {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(22px * var(--street-scale, 0.5));
+  animation: bubbleIn 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.6s ease;
+}
+
+.markA .speech {
+  left: calc(171px * var(--street-scale, 0.5));
+}
+
+.markB .speech {
+  left: auto;
+  right: calc(167px * var(--street-scale, 0.5));
+  align-items: flex-start;
+}
+
+.bubble {
+  box-sizing: border-box;
+  color: #4b4b4b;
+}
+
+.markA .bubble {
+  width: max-content;
+  max-width: calc(1104px * var(--street-scale, 0.5));
+  padding: calc(58px * var(--street-scale, 0.5)) calc(74px * var(--street-scale, 0.5));
+  border-radius:
+    calc(24px * var(--street-scale, 0.5))
+    calc(73px * var(--street-scale, 0.5))
+    calc(73px * var(--street-scale, 0.5))
+    calc(73px * var(--street-scale, 0.5));
+  background: radial-gradient(120% 140% at 46% 12%, rgba(155, 211, 112, 0.92) 0%, rgba(205, 233, 184, 0.88) 42%, rgba(255, 255, 255, 0.92) 82%);
+  box-shadow:
+    0 calc(19px * var(--street-scale, 0.5)) calc(17px * var(--street-scale, 0.5)) rgba(83, 94, 89, 0.3),
+    inset 0 calc(-8px * var(--street-scale, 0.5)) calc(21px * var(--street-scale, 0.5)) #fff,
+    inset calc(4px * var(--street-scale, 0.5)) calc(4px * var(--street-scale, 0.5)) calc(53px * var(--street-scale, 0.5)) #93f04b,
+    inset 0 calc(14px * var(--street-scale, 0.5)) calc(16px * var(--street-scale, 0.5)) rgba(0, 0, 0, 0.12);
+}
+
+.markB .bubble {
+  width: max-content;
+  max-width: calc(980px * var(--street-scale, 0.5));
+  padding: calc(58px * var(--street-scale, 0.5)) calc(74px * var(--street-scale, 0.5));
+  border-radius:
+    calc(73px * var(--street-scale, 0.5))
+    calc(24px * var(--street-scale, 0.5))
+    calc(73px * var(--street-scale, 0.5))
+    calc(73px * var(--street-scale, 0.5));
+  color: #3e3636;
+  background: radial-gradient(120% 160% at 50% 0%, rgba(124, 32, 204, 0.95) 0%, rgba(189, 143, 230, 0.9) 38%, rgba(255, 255, 255, 0.92) 78%);
+  box-shadow:
+    calc(8px * var(--street-scale, 0.5)) calc(16px * var(--street-scale, 0.5)) calc(16px * var(--street-scale, 0.5)) rgba(0, 0, 0, 0.23),
+    inset 0 calc(-10px * var(--street-scale, 0.5)) calc(13px * var(--street-scale, 0.5)) #fff,
+    inset calc(5px * var(--street-scale, 0.5)) calc(5px * var(--street-scale, 0.5)) calc(21px * var(--street-scale, 0.5)) #a869df,
+    inset calc(16px * var(--street-scale, 0.5)) calc(16px * var(--street-scale, 0.5)) calc(16px * var(--street-scale, 0.5)) rgba(0, 0, 0, 0.18);
+}
+
+.mainLine {
+  margin: 0;
+  color: #372b2b;
+  font-size: calc(46px * var(--street-scale, 0.5));
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+}
+
+.replies {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: calc(22px * var(--street-scale, 0.5));
+}
+
+.markB .replies {
+  position: absolute;
+  left: 0;
+  right: auto;
+  top: calc(100% + 22px * var(--street-scale, 0.5));
+  width: max-content;
+  align-self: flex-start;
+  justify-content: flex-start;
+}
+
+.repliesFolded {
+  align-items: flex-start;
+  gap: calc(36px * var(--street-scale, 0.5));
+}
+
+.reply {
+  box-sizing: border-box;
+  flex: none;
+  margin: 0;
+  width: max-content;
+  max-width: calc(1400px * var(--street-scale, 0.5));
+  padding: calc(42px * var(--street-scale, 0.5)) calc(74px * var(--street-scale, 0.5));
+  border-radius:
+    calc(14px * var(--street-scale, 0.5))
+    calc(91px * var(--street-scale, 0.5))
+    calc(91px * var(--street-scale, 0.5))
+    calc(91px * var(--street-scale, 0.5));
+  color: #fff;
+  font-size: calc(43px * var(--street-scale, 0.5));
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+  text-shadow: 0 1px 2px rgba(40, 50, 40, 0.28);
+  transition:
+    width 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    font-size 0.9s ease;
+}
+
+.reply.replyA {
+  background: linear-gradient(
+    180deg,
+    rgba(26, 83, 37, 0.2) 0%,
+    rgba(79, 255, 63, 0.2) 53.3654%
+  );
+  box-shadow:
+    inset calc(-12px * var(--street-scale, 0.5)) calc(-17.1429px * var(--street-scale, 0.5)) calc(29.7086px * var(--street-scale, 0.5)) rgba(0, 0, 0, 0.1),
+    inset 0 calc(6.85714px * var(--street-scale, 0.5)) calc(6.85714px * var(--street-scale, 0.5)) rgba(255, 255, 255, 0.25),
+    inset calc(9px * var(--street-scale, 0.5)) calc(6px * var(--street-scale, 0.5)) calc(8.57142px * var(--street-scale, 0.5)) rgba(210, 255, 176, 0.9),
+    inset calc(25px * var(--street-scale, 0.5)) 0 calc(18.3px * var(--street-scale, 0.5)) rgba(75, 92, 19, 0.41),
+    inset 0 calc(-102.857px * var(--street-scale, 0.5)) calc(116.571px * var(--street-scale, 0.5)) rgba(161, 255, 183, 0.6),
+    inset 0 calc(-17px * var(--street-scale, 0.5)) calc(25px * var(--street-scale, 0.5)) rgba(255, 255, 255, 0.19);
+}
+
+.reply.replyA .replyText,
+.reply.replyA .replyKeyword {
+  background: linear-gradient(180deg, #406649 -28.2571%, #51805c 127.6253%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
+.reply.replyB {
+  background: linear-gradient(180deg, rgba(119, 255, 205, 0.4) 0%, rgba(150, 53, 235, 0.4) 100%);
+  box-shadow:
+    inset 0 calc(4px * var(--street-scale, 0.5)) calc(9px * var(--street-scale, 0.5)) rgba(255, 255, 255, 0.7),
+    inset 0 calc(-124.192px * var(--street-scale, 0.5)) calc(140.751px * var(--street-scale, 0.5)) rgba(246, 189, 252, 0.3),
+    inset calc(41.397px * var(--street-scale, 0.5)) 0 calc(82.795px * var(--street-scale, 0.5)) rgba(124, 32, 204, 0.44),
+    inset calc(2.07px * var(--street-scale, 0.5)) 0 calc(10.349px * var(--street-scale, 0.5)) rgba(124, 32, 204, 0.8),
+    inset 0 calc(8.279px * var(--street-scale, 0.5)) calc(8.279px * var(--street-scale, 0.5)) rgba(255, 255, 255, 0.25),
+    inset calc(-14.489px * var(--street-scale, 0.5)) calc(-20.699px * var(--street-scale, 0.5)) calc(35.871px * var(--street-scale, 0.5)) rgba(0, 0, 0, 0.1);
+}
+
+.replyKeyword {
+  display: none;
+}
+
+.replyText,
+.replyKeyword {
+  background: none !important;
+  color: #4b4b4b !important;
+  -webkit-text-fill-color: #4b4b4b !important;
+}
+
+.repliesFolded .reply {
+  width: calc(174px * var(--street-scale, 0.5));
+  max-width: calc(174px * var(--street-scale, 0.5));
+  height: calc(157px * var(--street-scale, 0.5));
+  max-height: calc(157px * var(--street-scale, 0.5));
+  overflow: hidden;
+  padding: calc(32px * var(--street-scale, 0.5)) calc(56px * var(--street-scale, 0.5));
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  text-shadow: none;
+  pointer-events: auto;
+  cursor: pointer;
+  border-radius:
+    calc(16px * var(--street-scale, 0.5))
+    calc(103px * var(--street-scale, 0.5))
+    calc(103px * var(--street-scale, 0.5))
+    calc(103px * var(--street-scale, 0.5));
+  transition:
+    width 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    max-width 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.repliesFolded .reply.replyA {
+  background: linear-gradient(
+    180deg,
+    rgba(26, 83, 37, 0.2) 0%,
+    rgba(79, 255, 63, 0.2) 53.3654%
+  );
+  box-shadow:
+    inset calc(-12px * var(--street-scale, 0.5)) calc(-17.1429px * var(--street-scale, 0.5)) calc(29.7086px * var(--street-scale, 0.5)) rgba(0, 0, 0, 0.1),
+    inset 0 calc(6.85714px * var(--street-scale, 0.5)) calc(6.85714px * var(--street-scale, 0.5)) rgba(255, 255, 255, 0.25),
+    inset calc(9px * var(--street-scale, 0.5)) calc(6px * var(--street-scale, 0.5)) calc(8.57142px * var(--street-scale, 0.5)) rgba(210, 255, 176, 0.9),
+    inset calc(25px * var(--street-scale, 0.5)) 0 calc(18.3px * var(--street-scale, 0.5)) rgba(75, 92, 19, 0.41),
+    inset 0 calc(-102.857px * var(--street-scale, 0.5)) calc(116.571px * var(--street-scale, 0.5)) rgba(161, 255, 183, 0.6),
+    inset 0 calc(-17px * var(--street-scale, 0.5)) calc(25px * var(--street-scale, 0.5)) rgba(255, 255, 255, 0.19);
+}
+
+.repliesFolded .replyText {
+  color: transparent;
+  font-size: 0;
+}
+
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)) {
+  width: max-content;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(32px * var(--street-scale, 0.5)) calc(56px * var(--street-scale, 0.5));
+  color: #fff;
+  font-size: calc(40px * var(--street-scale, 0.5));
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)) .replyText {
+  display: none;
+}
+
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)) .replyKeyword {
+  display: block;
+  color: #fff;
+  font-size: calc(40px * var(--street-scale, 0.5));
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.repliesFolded .reply.replyB:has([data-reply-keyword]:not(:empty)),
+.repliesFolded .reply.replyB:has([data-reply-keyword]:not(:empty)) .replyKeyword {
+  color: #280531;
+}
+
+.repliesFolded .reply.replyA:has([data-reply-keyword]:not(:empty)),
+.repliesFolded .reply.replyA:has([data-reply-keyword]:not(:empty)) .replyKeyword {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)):hover .replyText,
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)):focus-visible .replyText {
+  display: block;
+}
+
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)):hover .replyKeyword,
+.repliesFolded .reply:has([data-reply-keyword]:not(:empty)):focus-visible .replyKeyword {
+  display: none;
+}
+
+.repliesFolded .reply:hover,
+.repliesFolded .reply:focus-visible {
+  width: max-content;
+  max-width: calc(1400px * var(--street-scale, 0.5));
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding: calc(40px * var(--street-scale, 0.5)) calc(64px * var(--street-scale, 0.5));
+  color: #fff;
+  font-size: calc(40px * var(--street-scale, 0.5));
+  line-height: 1.4;
+  z-index: 8;
+}
+
+.repliesFolded .reply:hover .replyText,
+.repliesFolded .reply:focus-visible .replyText {
+  color: #fff;
+  font-size: calc(40px * var(--street-scale, 0.5));
+  line-height: 1.4;
+  text-shadow: 0 1px 2px rgba(40, 50, 40, 0.28);
+}
+
+.repliesFolded .reply.replyA:hover,
+.repliesFolded .reply.replyA:focus-visible,
+.repliesFolded .reply.replyA:hover .replyText,
+.repliesFolded .reply.replyA:focus-visible .replyText {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
+@keyframes tagIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pendingRing {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 64%);
+  mask: radial-gradient(circle, transparent 62%, #000 64%);
+}
+
+.pendingCircle {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 2px dashed rgba(102, 187, 122, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pendingCircleLocked {
+  border-style: solid;
+  background: rgba(102, 187, 122, 0.18);
+  box-shadow: 0 0 0 4px rgba(102, 187, 122, 0.12);
+}
+
+.waitingHint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #2d6a3e;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 640px) {
+  .canvasWrapper,
+  .canvas,
+  .imageFrame {
+    height: auto;
+  }
+
+  .image {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+}

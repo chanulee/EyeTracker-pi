@@ -1,0 +1,71 @@
+.revealStep {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 72px 32px 48px;
+  box-sizing: border-box;
+  gap: 32px;
+}
+
+.winnerArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: floatIn 600ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.winnerLabel {
+  margin: 0;
+  font-size: 13px;
+  color: #6b6b6b;
+  letter-spacing: 0.02em;
+  text-align: center;
+  max-width: 280px;
+}
+
+.dialogue {
+  max-width: 560px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dialogue.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.agentTag {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #66bb7a;
+  margin-bottom: 8px;
+}
+
+.dialogueText {
+  margin: 0;
+  font-size: 16px;
+  color: #2e2e2e;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

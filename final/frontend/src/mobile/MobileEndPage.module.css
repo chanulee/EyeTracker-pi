@@ -1,0 +1,292 @@
+.artboard {
+  position: relative;
+  width: 480px;
+  height: 1044px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-color: #ffffff;
+  background:
+    linear-gradient(
+      167.648deg,
+      rgb(213, 255, 185) 0%,
+      rgba(213, 255, 185, 0.65) 6%,
+      rgba(255, 255, 255, 0.96) 24%,
+      rgba(255, 255, 255, 0.96) 74%,
+      rgba(177, 214, 154, 0.5) 100%,
+      rgba(162, 180, 151, 0.77) 100%
+    ),
+    #ffffff;
+}
+
+.copy {
+  position: absolute;
+  left: 38px;
+  top: 89px;
+  width: 382px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  color: #3c4b38;
+  word-break: keep-all;
+}
+
+.title {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.8px;
+}
+
+.lead {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.44px;
+}
+
+.leadLine {
+  margin: 0;
+}
+
+.leadStrong {
+  font-weight: 700;
+}
+
+.blobStack {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.blobDisc {
+  position: absolute;
+  left: 50%;
+  top: 316px;
+  width: 355px;
+  height: 355px;
+  transform: translateX(-50%) scale(1.18);
+  transform-origin: center center;
+}
+
+/* 이미지2처럼: 바깥 초록 헤일로(외곽 원) */
+.blobHalo {
+  position: absolute;
+  inset: -26%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(213, 255, 185, 0.85) 0%,
+    rgba(180, 230, 150, 0.45) 42%,
+    rgba(255, 255, 255, 0) 72%
+  );
+  filter: blur(8px);
+  opacity: 0.95;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* PNG에는 검은 배경/글로우가 함께 들어있어, 내부 구만 원형 클립으로 쓰고
+   바깥 초록 헤일로는 `.blobHalo`로 따로 재현한다. */
+.plantClip {
+  position: absolute;
+  inset: -8%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.plantFrame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+.plantImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+}
+
+.nameChipSlot {
+  position: absolute;
+  left: 50%;
+  top: 741px;
+  z-index: 4;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.sendBtn {
+  position: absolute;
+  left: 23px;
+  top: 889px;
+  width: 434px;
+  height: 80px;
+  z-index: 4;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sendBtnBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* btn-next.svg 를 CSS pill 로 대체 (구버전 iOS Safari 의 SVG 필터 렌더 실패 방지) */
+  border-radius: 999px;
+  background: radial-gradient(
+    296px 284px at 50% 50%,
+    #91e464 0%,
+    rgba(216, 255, 201, 0.9) 74.6%
+  );
+  box-shadow:
+    0 7px 4px rgba(172, 172, 172, 0.1),
+    inset 2px 2px 2px rgba(255, 255, 255, 0.7);
+}
+
+.sendBtnLabel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.44px;
+  color: #485943;
+}
+
+@keyframes textBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes contentBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+/* nameChipSlot은 가로 중앙용 translateX(-50%)와 함께 써야 함 */
+@keyframes endChipBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateX(-50%) translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes endGradientIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.artboardEnter .gradient {
+  opacity: 0;
+  animation: endGradientIn 0.85s ease 0.05s forwards;
+}
+
+.artboardEnter .copy {
+  opacity: 0;
+  filter: blur(10px);
+  animation: textBlurIn 0.9s ease-out 0.1s forwards;
+}
+
+.artboardEnter .blobStack,
+.artboardEnter .sendBtn {
+  opacity: 0;
+  filter: blur(8px);
+  animation: contentBlurIn 0.9s ease-out 0.2s forwards;
+}
+
+.artboardEnter .nameChipSlot {
+  opacity: 0;
+  filter: blur(8px);
+  animation: endChipBlurIn 0.9s ease-out 0.2s forwards;
+}
+
+.artboardEnter .sendBtn {
+  animation-delay: 0.28s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artboardEnter .gradient,
+  .artboardEnter .copy,
+  .artboardEnter .blobStack,
+  .artboardEnter .sendBtn {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .artboardEnter .nameChipSlot {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: translateX(-50%);
+  }
+
+  .artboardEnter .sendBtn {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

@@ -1,0 +1,44 @@
+/* 모든 페이지를 감싸는 공용 셸: 배경, 로딩·오류 화면, 바닥글. */
+
+.root {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: #2e2e2e;
+}
+
+.loading,
+.error {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+  text-align: center;
+}
+
+.loadingSub {
+  font-size: 13px;
+  color: #6b6b6b;
+  margin-top: 8px;
+}
+
+.error {
+  color: #8b4a4a;
+}
+
+.footer {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(107, 107, 107, 0.7);
+  z-index: 2;
+  pointer-events: none;
+}

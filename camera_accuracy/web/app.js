@@ -1,6 +1,71 @@
 const $ = id => document.getElementById(id);
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 let latest = {}, run = null, previewURL = null;
+let testPoint = [.5, .5], testIndex = 0;
+const testPoints = [[.5,.5],[.15,.2],[.5,.2],[.85,.2],[.85,.8],[.5,.8],[.15,.8]];
+const gridCells = Array.from({length:18}, (_, index) => {
+ const cell = document.createElement('div');
+ cell.className = 'test-cell'; cell.setAttribute('role', 'gridcell'); cell.setAttribute('aria-selected','false');
+ cell.textContent = `${String.fromCharCode(65+index%6)}${Math.floor(index/6)+1}`;
+ $('test-grid').append(cell); return cell;
+});
+function activateGrid(index = -1) {
+ gridCells.forEach((cell, i) => { cell.classList.toggle('active', i === index); cell.setAttribute('aria-selected',String(i === index)); });
+}
+function showCalibrationResults(model, viewport) {
+ const svg = $('calibration-plot'); svg.replaceChildren(); $('point-errors').replaceChildren();
+ const rows = model.fit_points;
+ const positions = rows.flatMap(row => [row.target, row.predicted]);
+ const minX = Math.min(0,...positions.map(p=>p[0]))-.06, maxX = Math.max(1,...positions.map(p=>p[0]))+.06;
+ const minY = Math.min(0,...positions.map(p=>p[1]))-.06, maxY = Math.max(1,...positions.map(p=>p[1]))+.06;
+ const x = value => 40+(value-minX)/(maxX-minX)*760, y = value => 25+(value-minY)/(maxY-minY)*440;
+ const draw = (tag, attrs, label) => {
+  const node = document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for (const [key,value] of Object.entries(attrs)) node.setAttribute(key,String(value));
+  if (label !== undefined) node.textContent = label;
+  svg.append(node);
+ };
+ draw('rect',{x:x(0),y:y(0),width:x(1)-x(0),height:y(1)-y(0),fill:'#101925',stroke:'#688198'});
+ for (const value of [0,.5,1]) {
+  draw('line',{x1:x(value),y1:y(0),x2:x(value),y2:y(1),stroke:'#34485a','stroke-dasharray':'4 4'});
+  draw('line',{x1:x(0),y1:y(value),x2:x(1),y2:y(value),stroke:'#34485a','stroke-dasharray':'4 4'});
+  draw('text',{x:x(value),y:492,fill:'#b3c4d7','text-anchor':'middle','font-size':14},`${Math.round(value*100)}%`);
+  draw('text',{x:8,y:y(value)+5,fill:'#b3c4d7','font-size':14},`${Math.round(value*100)}%`);
+ }
+ const errors = [];
+ rows.forEach((row,index) => {
+  const [tx,ty] = row.target, [px,py] = row.predicted;
+  const distance = Math.hypot((px-tx)*viewport.width,(py-ty)*viewport.height); errors.push(distance);
+  draw('line',{x1:x(tx),y1:y(ty),x2:x(px),y2:y(py),stroke:'#ff9b70','stroke-width':2});
+  draw('circle',{cx:x(tx),cy:y(ty),r:9,fill:'none',stroke:'white','stroke-width':2});
+  draw('circle',{cx:x(px),cy:y(py),r:5,fill:'#ffcc66'});
+  draw('text',{x:x(tx)+13,y:y(ty)-12,fill:'white','font-size':17},`${index+1}`);
+  const item = document.createElement('li'); item.textContent = `${index+1}번 · ${Math.round(distance)} px`; $('point-errors').append(item);
+ });
+ $('results-summary').textContent = `학습 오차 · 평균 ${Math.round(errors.reduce((a,b)=>a+b,0)/errors.length)} px · 최대 ${Math.round(Math.max(...errors))} px`;
+ $('results-warning').textContent = (model.warnings || []).join(' · ') || '보정 결과를 확인한 뒤 커서 테스트로 이동하세요.';
+ $('calibration-results').hidden = false;
+ $('results-proceed').focus();
+}
+function moveTestTarget(point) {
+ testPoint = point;
+ $('test-target').style.left = `${point[0]*100}%`;
+ $('test-target').style.top = `${point[1]*100}%`;
+ targetEvent('cursor_test', point, '커서 추종 확인');
+}
+$('test-next').onclick = () => moveTestTarget(testPoints[++testIndex % testPoints.length]);
+$('cursor-test').onclick = event => {
+ if (event.target === $('cursor-test') || event.target.closest('.test-cell')) moveTestTarget([event.clientX/innerWidth,event.clientY/innerHeight]);
+};
+$('test-close').onclick = () => { $('cursor-test').hidden = true; };
+$('test-recalibrate').onclick = () => { $('cursor-test').hidden = true; $('calibration-mode').value = 'quick'; $('start').click(); };
+$('results-proceed').onclick = () => {
+ if (run?.waiter?.kind === 'proceed') { run.waiter.resolve(); run.waiter = null; }
+};
+$('results-retry').onclick = async () => {
+ await cancel('다시 6점을 보정합니다.'); $('start').click();
+};
+$('calibration-mode').onchange = () => { $('start').textContent = $('calibration-mode').value === 'quick' ? '6점 보정 → 커서 테스트' : '1 → 9 → 4 시작'; };
 let recording = {}, recordingBusy = false, lastTarget = null, recordMessage = '';
 let previewEnabled = true, cameraBusy = false, settingsLoaded = false, selectROI = false, selectPupil = false, roiStart = null, roi = [.1, .25, .9, .75];
 async function api(path, data) {
@@ -11,22 +76,60 @@ async function api(path, data) {
  return response.json();
 }
 const cal = data => api('/api/calibration', data);
+async function scanCameras() {
+ $('camera-scan').disabled = true;
+ $('camera-list-status').textContent = 'Mac에 연결된 카메라를 확인하는 중…';
+ try {
+  const {devices, error} = await api('/api/camera/devices');
+  $('camera-devices').replaceChildren();
+  const previous = $('camera-choice').value || latest.camera?.device?.identity;
+  $('camera-choice').replaceChildren(new Option('카메라를 선택하세요', ''));
+  for (const device of devices) {
+   $('camera-choice').add(new Option(`${device.usb ? 'USB' : '내장 / 기타'} · ${device.name} (${device.index}번)`, device.identity));
+   const row = document.createElement('li');
+   row.textContent = `${device.usb ? 'USB' : '내장 / 기타'} · ${device.name} · 카메라 번호 ${device.index} · ${device.model} · 장치 ID ${device.identity}`;
+   $('camera-devices').append(row);
+  }
+  if (devices.some(device => device.identity === previous)) $('camera-choice').value = previous;
+  else if (devices.filter(device => device.usb).length === 1) $('camera-choice').value = devices.find(device => device.usb).identity;
+  updateFeedButton();
+  $('camera-list-status').textContent = error || (devices.length ? `${devices.length}대 인식 · USB ${devices.filter(device => device.usb).length}대 · 확인 시각 ${new Date().toLocaleTimeString()}` : 'Mac이 인식한 카메라가 없습니다. USB 케이블과 포트 연결을 확인한 뒤 목록을 새로고침하세요.');
+ } catch (error) { $('camera-list-status').textContent = `목록 조회 실패: ${error.message}`; }
+ finally { $('camera-scan').disabled = false; }
+}
+$('camera-scan').onclick = scanCameras;
+$('camera-choice').onchange = updateFeedButton;
+$('camera-connect').onclick = async () => {
+ cameraBusy = true; updateFeedButton();
+ const name = $('camera-choice').selectedOptions[0].textContent;
+ $('setup-message').textContent = `${name} 연결 요청 중…`;
+ try {
+  await api('/api/camera/refresh', {identity: $('camera-choice').value});
+  previewEnabled = true;
+  $('setup-message').textContent = `${name} 연결을 요청했습니다. 아래 영상 수신 상태를 확인하세요.`;
+ } catch (error) { $('setup-message').textContent = `연결 요청 실패: ${error.message}`; }
+ finally { cameraBusy = false; updateFeedButton(); }
+};
+scanCameras();
 function updateFeedButton() {
- const connected = latest.camera_connected && typeof latest.frame_age_ms === 'number' && latest.frame_age_ms < 350;
+ const connected = latest.camera_connected;
+ const visible = connected && typeof latest.frame_age_ms === 'number' && latest.frame_age_ms < 2000;
  $('camera-feed').textContent = cameraBusy ? 'USB 카메라를 다시 찾는 중…' : connected ? (previewEnabled ? '영상 피드 끄기' : '영상 피드 켜기') : '카메라 연결 새로고침';
  $('camera-feed').disabled = cameraBusy || Boolean(run);
+ $('camera-connect').disabled = cameraBusy || Boolean(run) || ! $('camera-choice').value || Boolean(recording.video_active) || ['video', 'stream'].includes(latest.camera?.mode);
+ $('camera-choice').disabled = cameraBusy || Boolean(run) || Boolean(recording.video_active);
  $('camera-feed').setAttribute('aria-pressed', String(Boolean(connected && previewEnabled)));
- $('preview-wrap').hidden = !connected || !previewEnabled;
+ $('preview-wrap').hidden = !visible || !previewEnabled;
 }
 $('camera-feed').onclick = async () => {
- if (latest.camera_connected && typeof latest.frame_age_ms === 'number' && latest.frame_age_ms < 350) {
+ if (latest.camera_connected || latest.camera?.mode === 'stream') {
   previewEnabled = !previewEnabled;
   for (const id of ['preview', 'calpreview']) $(id).hidden = !previewEnabled;
   $('roi-box').hidden = !previewEnabled || roi.join() === '0,0,1,1';
   updateFeedButton(); return;
  }
  cameraBusy = true; updateFeedButton();
- try { await api('/api/camera/refresh', {}); previewEnabled = true; $('setup-message').textContent = 'USB 재검색 요청을 보냈습니다. 아래 연결 상태를 확인하세요.'; }
+ try { await api('/api/camera/refresh', {}); previewEnabled = true; $('setup-message').textContent = 'USB 재연결 요청을 보냈습니다. 장치 목록과 영상 수신 상태를 확인하세요.'; await scanCameras(); }
  catch (error) { $('setup-message').textContent = error.message; }
  finally { cameraBusy = false; updateFeedButton(); }
 };
@@ -161,6 +264,7 @@ async function cancel(message = '취소했습니다. 진단 JSON에서 이전 �
  targetEvent('cancel', null, message);
  current.waiter?.reject(Error('cancelled'));
  $('calibration').hidden = true;
+ $('calibration-results').hidden = true;
  $('start').disabled = true;
  $('result').textContent = message;
  try { await cal({action: 'cancel', ...(current.session ? {session_id: current.session} : {})}); }
@@ -172,7 +276,8 @@ addEventListener('keydown', event => {
  if (!run) return;
  if (event.key === 'Escape') cancel();
  if (event.key === 'Tab') {
-  const buttons = [...$('calibration').querySelectorAll('button, a[href]')].filter(button => !button.hidden && !button.disabled);
+  const dialog = run.phase === 'results' ? $('calibration-results') : $('calibration');
+  const buttons = [...dialog.querySelectorAll('button, a[href]')].filter(button => !button.hidden && !button.disabled);
   const first = buttons[0], last = buttons.at(-1);
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
@@ -194,6 +299,10 @@ $('start').onclick = async () => {
  if (run || $('start').disabled) return;
  if (latest.camera?.mode === 'video') { $('result').textContent = '영상 파일 재생 모드입니다. USB 카메라 입력에서 보정하세요.'; return; }
  $('start').disabled = $('fullscreen').disabled = true;
+ const quick = $('calibration-mode').value === 'quick';
+ $('calibration-mode').disabled = true;
+ $('cursor-test').hidden = true;
+ $('calibration-results').hidden = true;
  const current = {session: null, phase: 'fit', index: null, viewport: {width: innerWidth, height: innerHeight}};
  run = current;
  const check = () => { if (run !== current) throw Error('cancelled'); };
@@ -208,7 +317,7 @@ $('start').onclick = async () => {
  $('cursor').hidden = true;
  try {
   await cal({action: 'reset'}); check();
-  const plan = await api('/api/plan'); check();
+  const plan = await api(`/api/plan?mode=${quick ? 'quick' : 'standard'}`); check();
   show('눈 영상에서 타원이 동공을 따라가는지 확인하세요.', null, false, true);
   await waitAction(current, 'continue'); check();
   const warm = [[.5, .5], [.2, .5], [.8, .5], [.5, .2], [.5, .8]];
@@ -218,18 +327,33 @@ $('start').onclick = async () => {
    show(`눈 모델 준비 · 머리는 고정하고 점을 따라 눈을 움직이세요.\n${latest.error || ''}`, warm[Math.floor(step / 18) % warm.length]);
    await pause(100); check(); step++;
   }
-  const session = await attempt(() => cal({action: 'begin', viewport: current.viewport}), '눈 모델 고정', [.5, .5]);
+  const session = await attempt(() => cal({action: 'begin', mode: quick ? 'quick' : 'standard', viewport: current.viewport}), '눈 모델 고정', [.5, .5]);
   current.session = session.session_id;
+  if (!quick || ['orlosky-ecc','orlosky-tapir','deepvog-ecc'].includes(latest.detector?.engine)) {
   current.phase = 'neutral';
   const neutralMessage = '1단계 · 중앙 1점\n머리를 유지하고 중앙을 바라보세요. 착용 기준을 수집합니다.';
   show(neutralMessage, [.5, .5]);
   await attempt(async () => { await pause(400); check(); return cal({action: 'neutral', session_id: current.session}); }, neutralMessage, [.5, .5]);
+  }
+  let fitted;
   for (let i = 0; i < plan.points.length; i++) {
    current.phase = 'sample'; current.index = i;
-   const point = plan.points[i], message = `2단계 · 3×3 보정 ${i + 1} / 9\n점을 계속 바라보세요.`;
+   const point = plan.points[i], message = `${quick ? '간단 보정 · 가로 3 × 세로 2' : '2단계 · 3×3 보정'} ${i + 1} / ${plan.points.length}\n점을 계속 바라보세요.`;
    show(message, point);
-   await attempt(async () => { await pause(900); check(); return cal({action: 'sample', index: i, session_id: current.session}); }, message, point);
+   fitted = await attempt(async () => { await pause(quick ? 700 : 900); check(); return cal({action: 'sample', index: i, session_id: current.session}); }, message, point);
    show('수집했습니다.', point); await pause(200); check();
+  }
+  if (quick) {
+   current.phase = 'results'; $('calibration').hidden = true;
+   showCalibrationResults(fitted.fit_diagnostics,current.viewport);
+   await waitAction(current,'proceed'); check();
+   await cal({action: 'finish_quick', session_id: current.session}); check();
+   $('calibration-results').hidden = true;
+   run = null; $('calibration').hidden = true;
+   $('result').textContent = '6점 간단 보정 완료 · 독립 검증 없이 커서 테스트를 시작합니다.';
+   $('cursor-test').hidden = false; testIndex = 0; moveTestTarget(testPoints[0]);
+   $('start').disabled = $('fullscreen').disabled = false;
+   return;
   }
   let result;
   for (let i = 0; i < plan.validation_points.length; i++) {
@@ -251,15 +375,21 @@ $('start').onclick = async () => {
   $('result').textContent = `완료 · 대각선 최대 정규 좌표 오차 ${result.validation_error.toFixed(3)} / 기준 0.120\n노란 커서를 눈으로 움직여보세요. 점별 픽셀 오차는 진단 JSON에 있습니다.`;
   $('start').disabled = $('fullscreen').disabled = false; $('start').focus();
  } catch (error) { if (run === current) await cancel(error.message); }
+ finally { $('calibration-mode').disabled = false; }
 };
 async function poll() {
  try {
   latest = await api('/api/status');
   updateFeedButton();
   const replay = latest.camera?.mode === 'video';
+  const liveStream = latest.camera?.mode === 'stream';
+  $('camera-inventory').hidden = liveStream;
+  $('camera-scan').hidden = liveStream;
   $('start').disabled = Boolean(run) || replay;
   const camera = latest.camera || {};
-  $('source-status').textContent = replay ? `영상 파일 재생: ${camera.source} · 녹화는 이 파일을 다시 저장합니다. 실제 USB 피드가 아닙니다.` :
+  const receiving = latest.camera_connected && typeof latest.frame_age_ms === 'number' && latest.frame_age_ms < 350;
+  $('camera-error').textContent = receiving ? `영상 수신 정상 · ${latest.processing_fps} FPS${latest.error ? ` · 동공 판정: ${latest.error}` : ''}` : latest.camera_connected ? `처리 영상 지연 · ${latest.frame_age_ms ?? '?'} ms · 시선 입력 일시 중지` : `영상 수신 상태: ${latest.error || '프레임 대기 중'}`;
+  $('source-status').textContent = camera.mode === 'stream' ? `Pi 실시간 스트림: ${camera.source} · ${camera.capture_width || '?'}×${camera.capture_height || '?'}` : replay ? `영상 파일 재생: ${camera.source} · 녹화는 이 파일을 다시 저장합니다. 실제 USB 피드가 아닙니다.` :
    `USB 카메라 입력: ${camera.device?.name || '연결 대기'}${camera.capture_width ? ` · ${camera.capture_width}×${camera.capture_height}` : ''}${latest.camera_connected ? '' : ' · 현재 연결 안 됨'}`;
   for (const button of document.querySelectorAll('[data-record="start_video"]')) button.textContent = replay ? '재생 영상 저장 시작' : '영상 녹화 시작';
   if (!settingsLoaded && latest.detector) {
@@ -285,7 +415,7 @@ async function poll() {
   const input = latest.camera?.mode === 'video' ? '녹화 영상 재생 · 실제 시선 측정 아님' : latest.camera_connected ? '카메라 연결됨' : '카메라 대기';
   const pupil = latest.pupil, model = latest.input_kind === 'pupil_center_2d' ? '2D 동공 좌표' : '3D 눈 모델';
   $('status').textContent = `${input} · ${latest.detector?.engine || ''} · ${latest.processing_fps} FPS · ${latest.processing_ms ?? '—'} ms (검출+미리보기)\n검출 품질 ${(latest.detection_quality ?? 0).toFixed(2)} · ${model} ${latest.ready ? '준비 완료' : '준비 중'}${pupil ? ` · 동공 지름 ${Math.max(...pupil.axes).toFixed(1)} px` : ''}\n${latest.error || ''}${flowStatus}${referenceStatus}`;
-  if (latest.fit_diagnostics) $('status').textContent += `\n9점 학습 오차 ${latest.fit_diagnostics.fit_error.toFixed(3)} · 한 점 생략 검사 ${latest.fit_diagnostics.loo_max_error?.toFixed(3) ?? '—'} (독립 검증과 별개)`;
+  if (latest.fit_diagnostics) $('status').textContent += `\n${latest.calibration_points}점 학습 오차 ${latest.fit_diagnostics.fit_error.toFixed(3)} · 한 점 생략 검사 ${latest.fit_diagnostics.loo_max_error?.toFixed(3) ?? '—'} (독립 검증과 별개)`;
   const attempt = latest.last_attempt;
   if (attempt) $('status').textContent += `\n최근 ${attempt.action === 'validate' ? '검증' : '보정'} ${(attempt.index ?? 0) + 1}: 유효 ${attempt.valid_frames}/${attempt.total_frames} 프레임 · 흔들림 ${attempt.raw_p90?.toFixed(4) ?? '—'}${attempt.error_norm == null ? '' : ` · 오차 ${attempt.error_norm.toFixed(3)} / ${attempt.error_px?.toFixed(1) ?? '—'} CSS px`}`;
   if (run?.session && latest.session_id !== run.session) await cancel('카메라 또는 보정 세션이 초기화되었습니다. 다시 시작하세요.');
@@ -293,24 +423,38 @@ async function poll() {
   const matches = !viewport || (viewport.width === innerWidth && viewport.height === innerHeight);
   $('cursor').hidden = Boolean(run) || !latest.valid || !matches || age > 350;
   if (!$('cursor').hidden) { $('cursor').style.left = latest.x * innerWidth + 'px'; $('cursor').style.top = latest.y * innerHeight + 'px'; }
+  if (!$('cursor-test').hidden) {
+   const cellIndex = !$('cursor').hidden ? Math.min(2,Math.floor(latest.y*3))*6+Math.min(5,Math.floor(latest.x*6)) : -1;
+   activateGrid(cellIndex);
+   const distance = latest.valid ? Math.hypot((latest.x-testPoint[0])*innerWidth,(latest.y-testPoint[1])*innerHeight) : null;
+   $('test-live').textContent = !matches || !latest.calibrated ? '보정이 초기화됐습니다. 다시 보정하세요.' : `${latest.processing_fps} FPS · ${cellIndex < 0 ? '활성 칸 없음' : `활성 칸 ${gridCells[cellIndex].textContent}`} · ${distance === null ? `추적 대기: ${latest.error || '동공을 확인하세요'}` : `목표와 커서 거리 ${Math.round(distance)} px`}`;
+  }
  } catch (error) {
   latest = {};
   updateFeedButton();
   $('cursor').hidden = true;
+  activateGrid();
   $('status').textContent = `서버 연결을 확인하세요. ${error.message}`;
  } finally { setTimeout(poll, 50); }
 }
 async function preview() {
  try {
   if (!document.hidden && latest.camera_connected && previewEnabled) {
-   const response = await fetch('/preview.jpg');
+   const response = await fetch('/preview.jpg', { cache: 'no-store' });
    if (!response.ok) throw Error();
    const url = URL.createObjectURL(await response.blob()), previous = previewURL;
+   const decoded = new Image();
+   try { decoded.src = url; await decoded.decode(); }
+   catch (error) { URL.revokeObjectURL(url); throw error; }
    previewURL = url;
    for (const id of ['preview', 'calpreview']) { $(id).src = url; $(id).hidden = false; }
    if (previous) URL.revokeObjectURL(previous);
   } else if (!latest.camera_connected || !previewEnabled) { $('roi-box').hidden = true; throw Error(); }
- } catch { $('preview').hidden = $('calpreview').hidden = true; }
+ } catch {
+  // Brief delays should hold the previous image, not flash an empty camera panel.
+  if (!previewEnabled || !latest.camera_connected || latest.frame_age_ms >= 2000)
+   $('preview').hidden = $('calpreview').hidden = true;
+ }
  finally { setTimeout(preview, 250); }
 }
 addEventListener('pagehide', () => {

@@ -1,0 +1,577 @@
+.artboard {
+  position: relative;
+  width: 480px;
+  height: 1044px;
+  overflow: hidden;
+}
+
+/* Figma 1693:970 — 2·3화면 동일 아트보드 그라디언트 */
+.gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    167.648deg,
+    rgb(213, 255, 185) 0%,
+    rgba(213, 255, 185, 0.45) 4%,
+    rgba(255, 255, 255, 0) 13%,
+    rgba(255, 255, 255, 0.22) 76.25%,
+    rgba(177, 214, 154, 0.5) 100%,
+    rgba(162, 180, 151, 0.77) 100%
+  );
+}
+
+.copy {
+  position: absolute;
+  left: 38px;
+  top: 89px;
+  width: 295px;
+  z-index: 4;
+  color: #3c4b38;
+  word-break: keep-all;
+}
+
+.district {
+  margin: 0 0 11px;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.8px;
+}
+
+.lead {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.44px;
+}
+
+.leadStrong {
+  font-weight: 700;
+}
+
+.tags {
+  position: absolute;
+  left: 38px;
+  top: 259px;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag {
+  padding: 5px 13px;
+  border-radius: 86px;
+  border: 1px solid #fff;
+  background: rgba(45, 45, 45, 0.1);
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.36px;
+  color: #3c4b38;
+}
+
+.tagMuted {
+  opacity: 0.9;
+}
+
+/* Figma 1693:944 / 1693:945 — 드로잉 글래스 보드 */
+.canvasPanelShell {
+  position: absolute;
+  left: 20px;
+  top: 307px;
+  width: 439px;
+  height: 568px;
+  z-index: 3;
+  border-radius: 45px;
+}
+
+.canvasPanel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  isolation: isolate;
+  border: none;
+  background: transparent;
+}
+
+/* 스트로크만 상·중·하 그라디언트 (보드 fill에는 적용 안 함) */
+.canvasPanel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(180deg, #658f01 0%, #fff 50%, #658f01 100%);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* 드로잉 영역만 프로스트 (팔레트·캔vas 밖 제외) */
+.canvasPanelFrost,
+.canvasPanelFrostFull {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0.52) 100%),
+    radial-gradient(
+      ellipse 79% 72% at 50% 50%,
+      rgba(246, 246, 246, 0.18) 0%,
+      rgba(255, 255, 255, 0.05) 100%
+    ),
+    linear-gradient(
+      201.88deg,
+      rgba(154, 251, 181, 0.024) 9.78%,
+      rgba(255, 255, 255, 0.07) 43.27%,
+      rgba(68, 194, 0, 0.08) 96.54%
+    ),
+    rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.canvasPanelFrost {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 74px;
+  border-radius: 44px 44px 0 0;
+}
+
+.canvasPanelFrostFull {
+  inset: 0;
+  border-radius: inherit;
+}
+
+.canvasPanel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 9;
+  border: none;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.drawSurface {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 74px;
+  z-index: 1;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+/* 2·3화면 그리기/미리보기 동일 레이어 */
+.drawSurfacePreview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.drawCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  pointer-events: auto;
+  background-color: transparent;
+}
+
+.undoBtn {
+  position: absolute;
+  left: 25px;
+  top: 25px;
+  z-index: 2;
+  width: 51px;
+  height: 51px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.undoBtn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Figma 1672:1115 / 852 — 흰 글래스 캡슐 (palette-tray.svg) */
+.paletteWrap {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 21px;
+  height: 74px;
+  z-index: 2;
+  border-radius: 37px;
+  overflow: hidden;
+  filter: drop-shadow(0 6px 3.7px rgba(172, 172, 172, 0.1));
+}
+
+.paletteTray {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 74px;
+  pointer-events: none;
+  object-fit: cover;
+  object-position: center 0;
+}
+
+.paletteWrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 37px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+/* Figma 1672:1116 — y 13.875 / h 46.25 */
+.paletteSwatches {
+  position: absolute;
+  z-index: 3;
+  top: 13.875px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 5.55px;
+  align-items: center;
+  justify-content: center;
+  width: min(357px, calc(100% - 44px));
+  height: 46.25px;
+}
+
+.swatch {
+  width: 46.25px;
+  height: 46.25px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  box-shadow: none;
+  outline: none;
+}
+
+.swatchSelected {
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* Figma 1692:696 */
+.nextBtn {
+  position: absolute;
+  left: 23px;
+  top: 889px;
+  width: 434px;
+  height: 80px;
+  z-index: 4;
+  padding: 0;
+  border: none;
+  background: transparent;
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease;
+}
+
+.nextBtnDisabled {
+  cursor: default;
+}
+
+.nextBtnDisabled .nextBg {
+  opacity: 0.48;
+  filter: grayscale(0.82) saturate(0.12);
+}
+
+.nextBtnDisabled .nextLabel {
+  opacity: 0.72;
+  color: #9aa594;
+}
+
+.nextBtnActive {
+  cursor: pointer;
+}
+
+.nextBtnActive .nextBg {
+  opacity: 1;
+  filter: none;
+}
+
+.nextBtnActive .nextLabel {
+  opacity: 1;
+  color: #485943;
+}
+
+.nextBg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* btn-next.svg 를 CSS pill 로 대체 (구버전 iOS Safari 의 SVG 필터 렌더 실패 방지) */
+  border-radius: 999px;
+  background: radial-gradient(
+    296px 284px at 50% 50%,
+    #91e464 0%,
+    rgba(216, 255, 201, 0.9) 74.6%
+  );
+  box-shadow:
+    0 7px 4px rgba(172, 172, 172, 0.1),
+    inset 2px 2px 2px rgba(255, 255, 255, 0.7);
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease;
+}
+
+.nextLabel {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  top: 50%;
+  display: block;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.44px;
+  color: #485943;
+  transform: translateY(-50%);
+  transition:
+    opacity 0.35s ease,
+    color 0.35s ease;
+}
+
+@keyframes textBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes contentBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.artboardEnter .gradient {
+  opacity: 0;
+  animation: drawingGradientIn 0.95s ease 0.05s forwards;
+}
+
+@keyframes drawingGradientIn {
+  0% {
+    opacity: 0.55;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+.artboardEnter .district {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+.artboardEnter .lead {
+  opacity: 0;
+  filter: blur(10px);
+  animation: textBlurIn 0.95s ease-out 0.12s forwards;
+}
+
+.artboardEnter .tags {
+  opacity: 0;
+  filter: blur(8px);
+  animation: textBlurIn 0.9s ease-out 0.22s forwards;
+}
+
+.artboardEnter .canvasPanelShell {
+  opacity: 0;
+  filter: blur(8px);
+  animation: contentBlurIn 0.95s ease-out 0.28s forwards;
+}
+
+@keyframes nextBtnEnterMotion {
+  from {
+    transform: translateY(12px);
+    filter: blur(8px);
+  }
+
+  to {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes nextBtnEnterRevealDisabled {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.artboardEnter .nextBtn {
+  opacity: 0;
+  animation:
+    nextBtnEnterMotion 0.9s ease-out 0.36s forwards,
+    nextBtnEnterRevealDisabled 0.9s ease-out 0.36s forwards;
+}
+
+@keyframes textBlurOut {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes chromeFadeOut {
+  from {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+@keyframes gradientFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* 드로잉 → 세이브: 배경·보드 유지, 텍스트·크롬만 블러 아웃 (그라디언트 페이드 아웃 시 하얀 번쌈 방지) */
+.artboardExiting .gradient {
+  animation: none;
+  opacity: 1;
+}
+
+.artboardExiting .lead,
+.artboardExiting .tags {
+  animation: textBlurOut 0.85s ease forwards;
+}
+
+.artboardExiting .district {
+  animation: none;
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+.artboardExiting .canvasPanelShell {
+  opacity: 1;
+  filter: none;
+  animation: none;
+}
+
+.artboardExiting .undoBtn,
+.artboardExiting .paletteWrap,
+.artboardExiting .nextBtn {
+  animation: chromeFadeOut 0.75s ease forwards;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artboardEnter .gradient,
+  .artboardEnter .lead,
+  .artboardEnter .tags,
+  .artboardEnter .canvasPanelShell {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .artboardEnter .nextBtn {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .artboardExiting .gradient,
+  .artboardExiting .lead,
+  .artboardExiting .tags,
+  .artboardExiting .undoBtn,
+  .artboardExiting .paletteWrap,
+  .artboardExiting .nextBtn {
+    animation: none;
+    opacity: 0;
+  }
+
+  .artboardExiting .district {
+    opacity: 1;
+  }
+}

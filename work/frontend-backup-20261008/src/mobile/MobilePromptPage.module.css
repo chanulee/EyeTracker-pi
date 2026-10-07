@@ -1,0 +1,85 @@
+.artboard {
+  position: relative;
+  width: 480px;
+  height: 1044px;
+  overflow: hidden;
+}
+
+.bubble {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  box-sizing: border-box;
+  width: min(420px, calc(100% - 48px));
+  margin: 0;
+  padding: 28px 24px;
+  border: 1.5px solid #fff;
+  border-radius: 28px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  cursor: pointer;
+  background:
+    linear-gradient(172deg, rgba(255, 255, 255, 0) 36.667%, rgba(255, 37, 157, 0.12) 92.111%),
+    linear-gradient(
+      194deg,
+      rgba(193, 234, 150, 0.64) 19.939%,
+      rgba(255, 255, 255, 0.48) 69.818%,
+      rgba(137, 245, 255, 0.7) 95.83%
+    ),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4));
+  box-shadow:
+    0 0 48px rgba(255, 255, 255, 0.75),
+    0 0 24px rgba(255, 255, 255, 0.5),
+    inset 0 8px 12px #fff;
+  animation: promptIn 0.65s cubic-bezier(0.18, 1.2, 0.32, 1) both;
+}
+
+@keyframes promptIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+.copy {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: -0.44px;
+  color: #363636;
+  word-break: keep-all;
+}
+
+.copyStrong {
+  font-weight: 700;
+}
+
+.artboardExiting .bubble {
+  animation: promptOut 0.45s cubic-bezier(0.42, 0, 0.58, 1) forwards;
+}
+
+@keyframes promptOut {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -52%);
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

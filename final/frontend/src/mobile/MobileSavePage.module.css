@@ -1,0 +1,259 @@
+.artboard {
+  position: relative;
+  width: 480px;
+  height: 1044px;
+  overflow: hidden;
+}
+
+.copy {
+  position: absolute;
+  left: 38px;
+  top: 89px;
+  width: 295px;
+  z-index: 4;
+  color: #3c4b38;
+  word-break: keep-all;
+}
+
+.district {
+  margin: 0 0 11px;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.8px;
+}
+
+.lead {
+  margin: 0;
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: -0.44px;
+}
+
+.leadStrong {
+  font-weight: 700;
+}
+
+.tags {
+  position: absolute;
+  left: 38px;
+  top: 259px;
+  z-index: 4;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tag {
+  padding: 5px 13px;
+  border-radius: 86px;
+  border: 1px solid #fff;
+  background: rgba(45, 45, 45, 0.1);
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.36px;
+  color: #3c4b38;
+}
+
+.tagMuted {
+  opacity: 0.9;
+}
+
+.statusBarSlot {
+  position: relative;
+  z-index: 4;
+}
+
+@keyframes textBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes contentBlurIn {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes saveGradientIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes completeBtnIn {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+/* 드로잉 → 세이브: 배경 영상 유지, UI만 블러 인 */
+.saveGradientSlot {
+  /* 그라디언트 스타일은 MobileDrawingPage.module.css 와 공유 */
+}
+
+.artboardEnter .saveGradientSlot {
+  opacity: 0;
+  animation: saveGradientIn 0.95s ease 0.05s forwards;
+}
+
+.artboardEnter .district {
+  opacity: 0;
+  animation: textBlurIn 0.95s ease-out 0.08s forwards;
+}
+
+.artboardEnter .lead {
+  opacity: 0;
+  filter: blur(10px);
+  animation: textBlurIn 0.95s ease-out 0.14s forwards;
+}
+
+.artboardEnter .tags {
+  opacity: 0;
+  filter: blur(8px);
+  animation: textBlurIn 0.9s ease-out 0.22s forwards;
+}
+
+.artboardEnter .savePanelShell {
+  opacity: 0;
+  filter: blur(8px);
+  animation: contentBlurIn 0.95s ease-out 0.26s forwards;
+}
+
+/* 드로잉 → 세이브: 보드 shell·위치·크기는 2화면과 동일 (크로스페이드만) */
+.artboardEnterFromDrawing .savePanelShell {
+  opacity: 1;
+  filter: none;
+  transform: none;
+  animation: none;
+}
+
+.artboardEnterFromDrawing .saveGradientSlot {
+  opacity: 1;
+  animation: none;
+}
+
+/* 드로잉 보드 handoff 동안 미리 디코드 (화면 밖) */
+.savePreviewPreload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.artboardEnter .completeBtn {
+  opacity: 0;
+  animation: completeBtnIn 0.9s ease-out 0.34s forwards;
+}
+
+@keyframes textBlurOut {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes chromeFadeOut {
+  from {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+@keyframes gradientFadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+/* 세이브 → 태그: 텍스트·패널 블러 아웃 (배경 블러는 MobileScreen) */
+.artboardExiting .saveGradientSlot {
+  animation: gradientFadeOut 0.85s ease forwards;
+}
+
+.artboardExiting .copy,
+.artboardExiting .tags {
+  animation: textBlurOut 0.85s ease forwards;
+}
+
+.artboardExiting .savePanelShell,
+.artboardExiting .completeBtn {
+  animation: chromeFadeOut 0.8s ease forwards;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artboardEnter .saveGradientSlot,
+  .artboardEnter .district,
+  .artboardEnter .lead,
+  .artboardEnter .tags,
+  .artboardEnter .savePanelShell,
+  .artboardEnter .completeBtn {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .artboardExiting .saveGradientSlot,
+  .artboardExiting .copy,
+  .artboardExiting .tags,
+  .artboardExiting .savePanelShell,
+  .artboardExiting .completeBtn {
+    animation: none;
+    opacity: 0;
+  }
+}

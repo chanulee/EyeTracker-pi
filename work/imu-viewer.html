@@ -1,0 +1,73 @@
+<!doctype html><html lang="ko"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>IMU Live Motion</title>
+<style>
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:#0b1420;color:#edf5ff;font:16px system-ui}main{max-width:1060px;margin:auto;padding:32px}h1{font-size:30px;margin:0 0 8px}p{color:#a7b9cd;line-height:1.6}.badge{color:#5ddfc2;min-height:26px}canvas{width:100%;height:430px;background:#111f30;border:1px solid #283b51;border-radius:20px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.card{background:#152437;padding:18px;border-radius:14px}.value{font-size:27px;margin-top:8px}.small{font-size:14px;color:#a7b9cd}button{background:#4bd9bd;border:0;border-radius:10px;padding:12px 18px;cursor:pointer;font:inherit;color:#09251f}.panel{background:#152437;padding:20px;border-radius:14px;margin-top:18px;overflow:auto}table{width:100%;border-collapse:collapse;text-align:right;font-variant-numeric:tabular-nums}th,td{padding:12px 8px;border-bottom:1px solid #293c52;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{color:#a7b9cd;font-weight:500}h2{font-size:18px;margin:0 0 12px}.warning{color:#ffbd72}#diagnostics{white-space:pre-wrap;overflow-wrap:anywhere}#quat{font-family:monospace;line-height:1.8}#age{float:right}@media(max-width:650px){main{padding:20px}.grid{grid-template-columns:repeat(2,1fr)}canvas{height:330px}.value{font-size:23px}}
+</style>
+<main><h1 id="heading">IMU · Live Motion</h1><p id="status" class="badge">센서 연결 중…</p>
+<canvas id="view" aria-label="센서의 3D 자세와 XYZ 축"></canvas>
+<div class="grid"><div class="card">Roll · X축 회전<div id="roll" class="value">—</div></div><div class="card">Pitch · Y축 회전<div id="pitch" class="value">—</div></div><div class="card">Yaw · Z축 회전<div id="yaw" class="value">—</div></div><div class="card">가속도 크기<div id="gravity" class="value">—</div></div></div>
+<button id="zero">현재 자세를 기준으로</button><span id="age" class="small"></span>
+<p id="capabilities" class="small">센서별로 지원하는 측정값만 표시합니다.</p>
+<section class="panel"><h2>센서 측정값 · 센서의 XYZ 축 기준</h2><table><thead><tr><th>측정 / 단위</th><th>X</th><th>Y</th><th>Z</th></tr></thead><tbody>
+<tr id="accel-row"><td>가속도 · g</td><td></td><td></td><td></td></tr>
+<tr id="gyro-row"><td>회전속도 · °/s</td><td></td><td></td><td></td></tr>
+<tr id="mag-row" hidden><td>자기장 · µT</td><td></td><td></td><td></td></tr>
+<tr id="gravity-vector-row" hidden><td>중력 · m/s²</td><td></td><td></td><td></td></tr>
+<tr id="linear-row" hidden><td>선형가속도 · m/s²</td><td></td><td></td><td></td></tr>
+</tbody></table><p id="temperature" class="small" hidden></p></section>
+<section id="quaternion-panel" class="panel" hidden><h2>융합 자세 · Rotation Vector</h2><div id="quat">—</div><p class="small">센서가 보내는 쿼터니언 (x, y, z, w). 3D 보드와 각도는 기준 자세 대비로 표시합니다. 자기장 영향을 받으므로 주변 금속·자석에 따라 Yaw가 달라질 수 있습니다.</p></section>
+<section class="panel"><h2>연결 상태</h2><div id="diagnostics" class="small">—</div></section></main>
+<script>
+const el=id=>document.getElementById(id),canvas=el('view'),ctx=canvas.getContext('2d');
+const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const unit=q=>{const n=Math.hypot(...q);return q.map(v=>v/n)};
+const conjugate=q=>[-q[0],-q[1],-q[2],q[3]];
+function multiply(a,b){const [x,y,z,w]=a,[X,Y,Z,W]=b;return [w*X+x*W+y*Z-z*Y,w*Y-x*Z+y*W+z*X,w*Z+x*Y-y*X+z*W,w*W-x*X-y*Y-z*Z]}
+function fromEuler(r,p,y=0){const cr=Math.cos(r/2),sr=Math.sin(r/2),cp=Math.cos(p/2),sp=Math.sin(p/2),cy=Math.cos(y/2),sy=Math.sin(y/2);return [sr*cp*cy-cr*sp*sy,cr*sp*cy+sr*cp*sy,cr*cp*sy-sr*sp*cy,cr*cp*cy+sr*sp*sy]}
+function euler(q){const [x,y,z,w]=q;return [Math.atan2(2*(w*x+y*z),1-2*(x*x+y*y)),Math.asin(Math.max(-1,Math.min(1,2*(w*y-z*x)))),Math.atan2(2*(w*z+x*y),1-2*(y*y+z*z))]}
+let reference=null,offsetR=0,offsetP=0,session=null,latest=null,target=[0,0,0,1],display=[0,0,0,1],fresh=false;
+function pose(s){return s.quaternion?unit(multiply(reference?conjugate(reference):[0,0,0,1],s.quaternion)):fromEuler(wrap(s.roll-offsetR),wrap(s.pitch-offsetP))}
+function updateAngles(s){target=pose(s);const angles=s.quaternion?euler(target):[wrap(s.roll-offsetR),wrap(s.pitch-offsetP),null];['roll','pitch','yaw'].forEach((id,i)=>el(id).textContent=angles[i]===null?'미지원':(angles[i]*180/Math.PI).toFixed(1)+'°')}
+el('zero').onclick=()=>{if(!latest||!fresh)return;if(latest.quaternion)reference=[...latest.quaternion];else{offsetR=latest.roll;offsetP=latest.pitch}updateAngles(latest)};
+function draw(){
+ const rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1,w=rect.width,h=rect.height;
+ if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr)}
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ const sign=display.reduce((s,v,i)=>s+v*target[i],0)<0?-1:1;display=unit(display.map((v,i)=>v+.16*(sign*target[i]-v)));
+ function rotate([x,y,z]){const q=display;const result=multiply(multiply(q,[x,y,z,0]),conjugate(q));return result.slice(0,3)}
+ function project([x,y,z]){const s=Math.min(w,h)*.84/(6+y);return [w/2+x*s,h/2-z*s+y*s*.30]}
+ ctx.strokeStyle='#24384d';ctx.lineWidth=1;
+ for(let i=-4;i<=4;i++){ctx.beginPath();let a=project([i,-4,-.7]),b=project([i,4,-.7]);ctx.moveTo(...a);ctx.lineTo(...b);a=project([-4,i,-.7]);b=project([4,i,-.7]);ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke()}
+ const vertices=[[-1.8,-1,-.12],[1.8,-1,-.12],[1.8,1,-.12],[-1.8,1,-.12],[-1.8,-1,.12],[1.8,-1,.12],[1.8,1,.12],[-1.8,1,.12]].map(rotate);
+ const faces=[[0,1,2,3,'#17433e'],[0,1,5,4,'#278b78'],[1,2,6,5,'#236b61'],[2,3,7,6,'#236b61'],[3,0,4,7,'#278b78'],[4,5,6,7,'#40c6a7']];
+ faces.sort((a,b)=>b.slice(0,4).reduce((s,i)=>s+vertices[i][1],0)-a.slice(0,4).reduce((s,i)=>s+vertices[i][1],0));
+ for(const f of faces){ctx.beginPath();f.slice(0,4).forEach((i,j)=>{const q=project(vertices[i]);j?ctx.lineTo(...q):ctx.moveTo(...q)});ctx.closePath();ctx.fillStyle=f[4];ctx.fill();ctx.strokeStyle='#91e7d0';ctx.stroke()}
+ for(const [v,label,color] of [[[2.5,0,0],'+X','#ffbd72'],[[0,1.8,0],'+Y','#88baff'],[[0,0,1.7],'+Z','#efb0ff']]){const a=project(rotate([0,0,.16])),b=project(rotate(v));ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();ctx.fillStyle=color;ctx.font='14px system-ui';ctx.fillText(label,b[0]+6,b[1])}
+ if(!fresh){ctx.fillStyle='#ffbd72';ctx.font='14px system-ui';ctx.fillText('이전 자세 / 새 데이터 대기 중',18,28)}
+ requestAnimationFrame(draw)
+}
+function vectorRow(id,values){const cells=el(id).querySelectorAll('td');for(let i=0;i<3;i++)cells[i+1].textContent=values?values[i].toFixed(3):'대기 중'}
+async function poll(){
+ try{
+  const res=await fetch('/state',{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);const s=await res.json();fresh=!s.stale&&!s.error&&s.age_s!==null&&s.age_s<1.5;
+  el('status').className=fresh?'badge':'badge warning';
+  el('status').textContent=s.mock?'시뮬레이션 · 실제 센서 데이터 아님':fresh?'연결됨 · '+s.sensor+' · 0x'+s.address.toString(16):'새 데이터 대기 · '+(s.error||'읽기 지연');
+  el('age').textContent=s.age_s===null?'':'마지막 정상 읽기 '+s.age_s.toFixed(1)+'초 전';
+  el('diagnostics').textContent='읽기 오류 '+(s.errors||0)+'회 · 재연결 '+(s.reconnects||0)+'회'+(s.last_error?'\n최근 오류: '+s.last_error:'')+(s.field_errors?.length?'\n추가 측정값 오류: '+s.field_errors.join(' / '):'');
+  if(s.sensor){
+   el('heading').textContent=s.sensor+' · Live Motion';const bno=s.sensor==='BNO086';
+   el('capabilities').textContent=bno?'9축: 가속도 3축 + 자이로 3축 + 자기장 3축. 센서 융합 자세로 Roll / Pitch / Yaw를 표시합니다.':'6축: 가속도 3축 + 자이로 3축. Roll / Pitch는 중력으로 계산하며, Yaw 각도는 미지원입니다. Z축 회전속도는 아래에 표시합니다.';
+   ['mag-row','gravity-vector-row','linear-row','quaternion-panel'].forEach(id=>el(id).hidden=!bno);el('temperature').hidden=bno;
+  }
+  if(fresh){
+   const key=s.sensor+':'+s.generation;if(session!==key){session=key;reference=null;offsetR=offsetP=0;display=[0,0,0,1]}
+   latest=s;updateAngles(s);el('gravity').textContent=s.gravity.toFixed(3)+' g';
+   vectorRow('accel-row',s.accel);vectorRow('gyro-row',s.gyro);vectorRow('mag-row',s.mag);vectorRow('gravity-vector-row',s.gravity_vector);vectorRow('linear-row',s.linear_accel);
+   el('temperature').textContent='온도: '+(s.temperature_c===null?'대기 중':s.temperature_c.toFixed(1)+' °C');
+   el('quat').textContent=s.quaternion?s.quaternion.map((v,i)=>['x','y','z','w'][i]+': '+v.toFixed(5)).join('   '):'대기 중';
+  }
+ }catch(e){fresh=false;el('status').className='badge warning';el('status').textContent='연결 없음: '+e.message}
+ setTimeout(poll,100)
+}
+draw();poll();
+</script></html>

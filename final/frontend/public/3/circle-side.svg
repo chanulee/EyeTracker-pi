@@ -1,0 +1,22 @@
+<svg width="95" height="95" viewBox="0 0 95 95" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glass" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feOffset dx="-4" dy="-3" in="SourceAlpha" result="darkOff"/>
+      <feGaussianBlur in="darkOff" stdDeviation="2.2" result="darkBlur"/>
+      <feComposite in="darkBlur" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="darkInset"/>
+      <feFlood flood-color="#000000" flood-opacity="0.25" result="darkColor"/>
+      <feComposite in="darkColor" in2="darkInset" operator="in" result="dark"/>
+      <feOffset dx="5" dy="6" in="SourceAlpha" result="lightOff"/>
+      <feGaussianBlur in="lightOff" stdDeviation="1.4" result="lightBlur"/>
+      <feComposite in="lightBlur" in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="lightInset"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.25" result="lightColor"/>
+      <feComposite in="lightColor" in2="lightInset" operator="in" result="light"/>
+      <feMerge>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="dark"/>
+        <feMergeNode in="light"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="47.5" cy="47.5" r="47.5" fill="white" filter="url(#glass)"/>
+</svg>

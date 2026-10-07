@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Eye cursor · 운영 프로토타입</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#131b26;color:#edf3fa;font:16px system-ui}header{padding:18px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;border-bottom:1px solid #3c4d62}h1{font-size:20px;margin:0}button{font:inherit;padding:9px 14px;border:1px solid #8aa5bb;border-radius:6px;background:#24354a;color:inherit;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible{outline:3px solid #ffcc66}main{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:24px;height:65vh}.tile{display:grid;place-items:center;border:2px solid #384f65;border-radius:14px;font-size:30px}.tile.hot{border-color:#ffcc66;background:#324254}.tile.selected{background:#405f45}#cursor{display:none;position:fixed;width:28px;height:28px;border:3px solid #ffcc66;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:4}details{margin:18px;padding:12px;background:#1d2a3a}label{display:block;margin:12px 0}input,textarea{width:100%;padding:8px;font:inherit}input[type=checkbox]{width:auto}form{max-width:650px}#calibration{position:fixed;inset:0;background:#131b26;z-index:10;display:none}#dot{position:absolute;transform:translate(-50%,-50%);width:32px;height:32px;background:#ff6d72;border:5px solid white;border-radius:50%}#instruction{position:absolute;bottom:3%;width:100%;text-align:center;padding:8px}#preview{width:320px;max-width:100%}small{color:#b3c4d7}#state{white-space:pre-wrap;font-size:13px}#result{padding:0 24px}#mode{color:#ffcc66}
+#instruction{left:50%;transform:translateX(-50%);width:min(680px,calc(100vw - 24px));display:flex;gap:18px;align-items:center;justify-content:center;border:1px solid #3c4d62;border-radius:12px;background:#1d2a3aee;padding:16px}#calpreview{width:180px;max-width:30vw;aspect-ratio:4/3;object-fit:contain;border-radius:8px}#camerastate{font-size:11px;color:#b3c4d7;margin:4px 0}@media(max-height:500px){#calpreview{width:90px}#instruction{padding:8px}}
+</style>
+<header><h1>Eye cursor</h1><span id="connection" role="status">연결 중</span><span id="mode"></span>
+<a href="http://localhost:8080/admin" style="color:#b3c4d7">통합 관리자</a>
+<button id="fullscreen">전체 화면</button><button id="reset">새 관람객</button><button id="start" disabled>개인별 보정</button></header>
+<p style="padding:0 24px">① 새 관람객 → 눈을 여러 방향으로 천천히 움직여 모델 준비 → ② 전체 화면 → ③ 개인별 보정 → 타일을 1초 바라보기</p>
+<main id="tiles"><button class="tile">1</button><button class="tile">2</button><button class="tile">3</button><button class="tile">4</button></main>
+<p id="result" role="status">아직 선택 없음</p><div id="cursor"></div>
+<details><summary>카메라 및 연결 상태</summary><img id="preview" alt="Pi 눈 카메라 영상"><pre id="state"></pre></details>
+<details><summary>Mac 설정 / 프론트엔드 연결</summary>
+<p>Pi의 설정 페이지에서 수신 주소 <code id="receiverEndpoint"></code>와 아래 토큰을 입력하세요.</p>
+<label>Pi 영상 전송 토큰<input id="token" type="password" readonly aria-label="Pi 영상 전송 토큰"></label><button id="copy">토큰 복사</button>
+<p>프론트엔드는 <code id="gazeEndpoint"></code>를 구독하세요. 원점은 뷰포트 왼쪽 위, x/y는 0–1입니다.</p>
+<form id="settings"><label>허용할 프론트엔드 Origin (한 줄에 하나)<textarea name="allowed_origins" placeholder="http://localhost:3000"></textarea></label>
+<label>안정화 시간 (ms, 높을수록 부드럽지만 느림)<input name="smoothing_ms" type="number" min="10" max="500" required></label>
+<label>최대 이동 속도 (화면 길이/초)<input name="max_speed" type="number" min="0.1" max="20" step="0.1" required></label>
+<label>동공 품질 기준 (0.1–1)<input name="confidence" type="number" min="0.1" max="1" step="0.01" required></label>
+<label><input name="flip" type="checkbox"> Mac에서 영상 180° 회전 (Pi 설정과 중복 주의)</label>
+<button>저장</button><p id="saved" role="status"></p></form></details>
+<div id="calibration"><div id="dot"></div><div id="instruction" role="status"><div><img id="calpreview" alt="보정 중 라이브 눈 카메라" hidden><p id="camerastate">라이브 눈 카메라 · 영상 연결 확인 중</p></div><div><p id="calmsg"></p><button id="retry" hidden>같은 점 다시 수집</button> <button id="cancel">보정 취소</button></div></div></div>
+<script type="module">
+import {connectGaze} from '/gaze-client.js';
+const $=id=>document.getElementById(id), form=$('settings');
+let latest={}, active=false, generation=0, sim=false, mouse=[.5,.5], hover=null, since=0, selected=false;
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function request(path, data) {
+ const response=await fetch(path,data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+ if(!response.ok) throw Error(await response.text());
+ return response.json();
+}
+const cal=data=>request('/api/calibration',data);
+$('receiverEndpoint').textContent='주소 확인 중';
+request('/api/exhibition').then(info=>{$('receiverEndpoint').textContent=info.lan_address?`ws://${info.lan_address}:${location.port}/camera`:'Mac LAN 주소 확인 실패';}).catch(()=>{$('receiverEndpoint').textContent='주소 확인 실패';});
+$('gazeEndpoint').textContent=`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`;
+const subscription=await request('/api/config');
+connectGaze(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/gaze`, data=>{
+ latest=data; $('start').disabled=active||!data.ready;
+ $('state').textContent=JSON.stringify(data,null,2);
+ const cursor=$('cursor'); cursor.style.display=data.valid&&!active?'block':'none';
+ if(data.valid){cursor.style.left=data.x*innerWidth+'px';cursor.style.top=data.y*innerHeight+'px';}
+ let tile=data.valid&&!active?[...document.querySelectorAll('.tile')].find(el=>{
+  const r=el.getBoundingClientRect(), x=data.x*innerWidth,y=data.y*innerHeight;
+  return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
+ }):null;
+ if(tile!==hover){hover?.classList.remove('hot');hover=tile;since=performance.now();selected=false;hover?.classList.add('hot');}
+ if(hover&&!selected&&performance.now()-since>1000){selected=true;hover.classList.add('selected');$('result').textContent='선택: '+hover.textContent;setTimeout(()=>tile.classList.remove('selected'),400);}
+},status=>$('connection').textContent=({connected:'서버 연결됨',disconnected:'서버 끊김',stale:'데이터 지연'})[status],{token:subscription.gaze_token});
+request('/api/config').then(data=>{
+ $('token').value=data.token;
+ for(const key of ['smoothing_ms','max_speed','confidence','allowed_origins','flip']){
+  const input=form.elements.namedItem(key);
+  if(key==='flip')input.checked=data[key];else input.value=Array.isArray(data[key])?data[key].join('\n'):data[key];
+ }
+}).catch(error=>$('saved').textContent=error.message);
+request('/api/status').then(data=>{document.querySelector('h1').textContent=`사용자 ${data.user_id} · Eye cursor`;document.title=`사용자 ${data.user_id} · Eye cursor`;sim=data.simulate;$('mode').textContent=sim?'시뮬레이션 · 실제 시선 아님 (마우스로 점을 따라가세요)':'';});
+form.onsubmit=async event=>{
+ event.preventDefault();
+ const data={};for(const key of ['smoothing_ms','max_speed','confidence']) data[key]=Number(form.elements.namedItem(key).value);
+ data.allowed_origins=form.elements.namedItem('allowed_origins').value.split('\n').map(s=>s.trim()).filter(Boolean);data.flip=form.elements.namedItem('flip').checked;
+ try{await request('/api/config',data);$('saved').textContent='저장했습니다. 품질 기준/회전을 바꿨다면 다시 개인별 보정하세요';}catch(error){$('saved').textContent=error.message;}
+};
+$('copy').onclick=()=>navigator.clipboard.writeText($('token').value).catch(()=>$('token').select());
+$('fullscreen').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+async function reset(){generation++;active=false;$('calibration').style.display='none';$('retry').hidden=true;await cal({action:'reset'});$('result').textContent='새 관람객: 눈을 여러 방향으로 움직여 준비하세요';}
+$('reset').onclick=()=>reset().catch(error=>$('result').textContent=error.message);
+$('cancel').onclick=()=>{generation++;active=false;$('calibration').style.display='none';cal({action:'cancel'}).catch(error=>$('result').textContent=error.message);};
+addEventListener('keydown',event=>{if(event.key==='Escape'&&active)$('cancel').click();});
+addEventListener('resize',()=>{if(active||latest.calibrated)reset().catch(error=>$('result').textContent=error.message);});
+$('start').onclick=async()=>{
+ if(active)return;active=true;const run=++generation;$('start').disabled=true;
+ try{
+  const session=await cal({action:'begin'});if(run!==generation)return;
+  $('calibration').style.display='block';
+  const points=[];for(const y of [.1,.5,.9])for(const x of [.1,.5,.9])points.push([x,y]);points.push([.5,.5]);
+  for(let i=0;i<points.length;i++){
+   const [x,y]=points[i];$('dot').style.left=x*100+'%';$('dot').style.top=y*100+'%';
+   $('instruction').style.top=y>.7?'3%':'auto';$('instruction').style.bottom=y>.7?'auto':'3%';
+   let done=false;
+   while(!done&&run===generation){
+    $('calmsg').textContent=i===9?'중앙 점을 보세요 · 정확도 확인':`${i+1}/9 · 빨간 점을 계속 보세요`;
+    await sleep(900);if(run!==generation)return;
+    try{const data=await cal({action:i===9?'validate':'sample',index:i,session_id:session.session_id});done=true;if(i===9)$('result').textContent=`보정 완료 · 중앙 오차 ${(data.validation_error*100).toFixed(1)}% · 타일을 1초 바라보세요`;}
+    catch(error){
+     if(run!==generation)return;
+     $('calmsg').textContent=error.message;$('retry').hidden=false;
+     await new Promise(resolve=>{const interval=setInterval(()=>{if(run!==generation){clearInterval(interval);resolve();}},100);$('retry').onclick=()=>{clearInterval(interval);resolve();};});
+     $('retry').hidden=true;
+    }
+   }
+   if(run!==generation)return;
+  }
+ }catch(error){if(run===generation){$('result').textContent=error.message;await cal({action:'cancel'}).catch(()=>{});}}
+ finally{if(run===generation){active=false;$('calibration').style.display='none';}}
+};
+addEventListener('mousemove',event=>mouse=[event.clientX/innerWidth,event.clientY/innerHeight]);
+let demoBusy=false;
+setInterval(async()=>{if(sim&&!demoBusy){demoBusy=true;try{await request('/api/demo',{x:mouse[0],y:mouse[1]});}catch(error){$('connection').textContent='서버 끊김';}finally{demoBusy=false;}}},40);
+for(const tile of document.querySelectorAll('.tile'))tile.onclick=()=>{$('result').textContent='선택: '+tile.textContent;};
+let previewBusy=false,previewURL=null;
+setInterval(async()=>{
+ if(document.hidden||previewBusy||(!active&&!$('preview').closest('details').open))return;
+ previewBusy=true;
+ try{
+  const response=await fetch('/preview.jpg?overlay=1');if(!response.ok)throw Error();
+  const url=URL.createObjectURL(await response.blob()),previous=previewURL;previewURL=url;
+  $('preview').src=url;$('calpreview').src=url;$('calpreview').hidden=false;$('camerastate').textContent='라이브 눈 카메라';
+  if(previous)URL.revokeObjectURL(previous);
+ }catch{$('calpreview').hidden=true;$('camerastate').textContent=sim?'시뮬레이션 · 실제 눈 영상 없음':'최신 눈 영상 대기 · Pi 연결을 확인하세요';}
+ finally{previewBusy=false;}
+},250);
+addEventListener('pagehide',()=>{if(previewURL)URL.revokeObjectURL(previewURL);});
+</script></html>

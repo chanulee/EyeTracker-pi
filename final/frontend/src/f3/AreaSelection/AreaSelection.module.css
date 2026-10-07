@@ -1,0 +1,670 @@
+.viewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #c5d7ef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fit {
+  position: relative;
+  flex: none;
+}
+
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3881px;
+  height: 2183px;
+  transform-origin: top left;
+  overflow: hidden;
+  color: #fff;
+  font-family: Pretendard, system-ui, sans-serif;
+}
+
+.stage img {
+  max-width: none;
+}
+
+.bg {
+  position: absolute;
+  left: -168px;
+  top: -41px;
+  width: 4218px;
+  height: 2354px;
+  object-fit: cover;
+  filter: blur(10px);
+  transition: opacity 1.6s cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+.findingVideo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  width: 3881px;
+  height: 2183px;
+  object-fit: cover;
+  transition: opacity 1.8s cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+.bg.isHidden,
+.findingVideo.isHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.roulette {
+  position: absolute;
+  left: -69px;
+  top: 50px;
+  width: 4019px;
+  height: auto;
+  pointer-events: none;
+}
+
+.arc {
+  position: absolute;
+  left: -69px;
+  top: 181px;
+  width: 4019px;
+  height: 274px;
+  transform: scaleY(-1);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.centerGlow {
+  position: absolute;
+  left: 1813px;
+  top: 60px;
+  width: 255px;
+  height: 255px;
+  pointer-events: none;
+}
+
+.centerRing {
+  position: absolute;
+  left: 1807px;
+  top: 50px;
+  width: 267px;
+  height: 267px;
+  pointer-events: none;
+}
+
+.stillCenter {
+  position: absolute;
+  z-index: 3;
+  left: 1840.5px;
+  top: 87.5px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 41.88px rgba(130, 245, 255, 0.54),
+    0 0 16.378px #ffcfe3;
+}
+
+.stillPlain {
+  box-shadow: none;
+}
+
+.stillClip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.stillDiscImage {
+  position: absolute;
+  left: -41.8px;
+  top: -41.9px;
+  width: 283.6px;
+  height: 283.8px;
+  max-width: none;
+}
+
+.markCrop {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.markCrop img {
+  display: block;
+  max-width: none;
+}
+
+.token {
+  position: absolute;
+  overflow: visible;
+  border-radius: 50%;
+}
+
+.disc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 5px 6px 4px rgba(255, 255, 255, 0.25),
+    inset -4px -3px 6.7px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: auto;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.mark {
+  position: absolute;
+  object-fit: contain;
+}
+
+.logo,
+.chip,
+.centerLogo {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo {
+  border-radius: 50%;
+  box-shadow:
+    inset 5px 6px 4px rgba(255, 255, 255, 0.25),
+    inset -4px -3px 6.7px rgba(0, 0, 0, 0.25);
+}
+
+.logo img {
+  position: absolute;
+  object-fit: contain;
+}
+
+.chip {
+  width: 95px;
+  height: 95px;
+  border-radius: 47.5px;
+  box-shadow:
+    inset 5px 6px 4px rgba(255, 255, 255, 0.25),
+    inset -4px -3px 6.7px rgba(0, 0, 0, 0.25);
+}
+
+.chip img {
+  width: 70%;
+  height: 54%;
+  object-fit: contain;
+}
+
+.centerLogo {
+  width: 175px;
+  height: 175px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 0 0 16px rgba(255, 255, 255, 0.55),
+    0 0 36px rgba(130, 245, 255, 0.54),
+    0 0 14px #ffcfe3;
+}
+
+.centerLogo img {
+  width: 78%;
+  height: 42%;
+  object-fit: contain;
+}
+
+.fadeLayer,
+.copyHide,
+.copyShow,
+.copyLeave,
+.rouletteLayer,
+.mapMotion,
+.qrFrame {
+  transition:
+    opacity 1.4s cubic-bezier(0.33, 0, 0.2, 1),
+    transform 1.4s cubic-bezier(0.22, 0.8, 0.2, 1),
+    left 1.4s cubic-bezier(0.33, 0, 0.2, 1),
+    top 1.4s cubic-bezier(0.33, 0, 0.2, 1),
+    width 1.4s cubic-bezier(0.33, 0, 0.2, 1),
+    height 1.4s cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+.fadeLayer.isHidden,
+.rouletteLayer.isHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.copyHide,
+.copyShow,
+.copyLeave {
+  pointer-events: none;
+}
+
+.copyHide {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.copyShow {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.copyLeave {
+  opacity: 0;
+  transform: translateX(0);
+}
+
+.mapMotion {
+  position: absolute;
+  z-index: 1;
+  overflow: visible;
+}
+
+.mapMotion.isGone {
+  opacity: 0;
+  transition: opacity 1.8s cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+.mapMotion img,
+.mapSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  overflow: visible;
+}
+
+.mapSvg {
+  z-index: 1;
+}
+
+.fTitle,
+.fBody,
+.fWait,
+.resultTitle,
+.resultBody,
+.qTitle,
+.qrHeading,
+.qrBody {
+  z-index: 3;
+}
+
+.fTitle {
+  position: absolute;
+  left: 1242px;
+  top: 404px;
+  width: 1398px;
+  margin: 0;
+  text-align: center;
+  font-size: 110px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -2.2px;
+}
+
+.fBody {
+  position: absolute;
+  left: 1242px;
+  top: 572px;
+  width: 1398px;
+  margin: 0;
+  text-align: center;
+  font-size: 50px;
+  font-weight: 300;
+  line-height: 1.4;
+  letter-spacing: -1px;
+}
+
+.fBody strong {
+  font-weight: 700;
+}
+
+.fWait {
+  position: absolute;
+  left: 1720px;
+  top: 1963px;
+  width: 441px;
+  margin: 0;
+  text-align: center;
+  font-size: 50px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -1px;
+}
+
+.videoSlot {
+  position: absolute;
+  left: 1143px;
+  top: 749px;
+  width: 1544px;
+  height: 1108px;
+  mix-blend-mode: screen;
+}
+
+.videoMap,
+.videoOutline {
+  position: absolute;
+  left: 0;
+  width: 1544px;
+  height: 1045px;
+  top: 31px;
+  object-fit: fill;
+}
+
+.videoOutline {
+  pointer-events: none;
+}
+
+.resultTitle {
+  position: absolute;
+  left: 355px;
+  top: 681px;
+  margin: 0;
+  font-size: 210px;
+  font-weight: 300;
+  line-height: 1.2;
+  letter-spacing: -4.2px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.resultName {
+  font-weight: 600;
+}
+
+.qTitle {
+  position: absolute;
+  left: 240px;
+  top: 615px;
+  margin: 0;
+  font-size: 210px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -4.2px;
+}
+
+.qTitle strong {
+  font-weight: 700;
+}
+
+.qrHeading {
+  position: absolute;
+  left: 1018px;
+  top: 480px;
+  width: 1846px;
+  height: 132px;
+  overflow: visible;
+}
+
+.qrBody {
+  position: absolute;
+  left: 641px;
+  top: 1820px;
+  width: 2600px;
+  margin: 0;
+  text-align: center;
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: -0.96px;
+}
+
+.resultBody {
+  position: absolute;
+  left: 355px;
+  top: 1761px;
+  width: 1874px;
+  margin: 0;
+  font-size: 55px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -1.1px;
+}
+
+.qrJoinStatus {
+  top: 1960px;
+  font-size: 42px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.resultLines {
+  width: auto;
+  white-space: nowrap;
+}
+
+.mapWrap {
+  position: absolute;
+  left: 1765px;
+  top: 526px;
+  width: 1904px;
+  height: 1269px;
+}
+
+.districtGlow {
+  position: absolute;
+  z-index: 2;
+  width: 268.536px;
+  height: 268.536px;
+  transform: translate(-40px, -40px);
+  pointer-events: none;
+  animation: glowIn 0.9s ease both;
+}
+
+.districtGlow.isHidden {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+@keyframes glowIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.districtGlow img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+}
+
+.mapWrap img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.mapScreen {
+  mix-blend-mode: screen;
+}
+
+.qrPair {
+  position: absolute;
+  left: 1940px;
+  top: 970px;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 80px;
+  opacity: 0;
+  transform: translateX(calc(-50% + 40px));
+}
+
+.qrPair.qrPairOn {
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
+.qrSlot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qrNameTag {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  height: auto;
+  overflow: visible;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.qrNameTagNabi {
+  width: 423px;
+  transform: translateX(calc(-50% - 19px));
+}
+
+.qrNameTagSora {
+  width: 427px;
+  transform: translateX(calc(-50% - 21px));
+}
+
+.qrFrame {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 700px;
+  height: 700px;
+  box-sizing: border-box;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.92);
+  transform-origin: center;
+  border: 1.781px solid #fff;
+  border-radius: 132px;
+  box-shadow: 0 0 19.323px rgba(255, 255, 255, 0.78);
+  background:
+    radial-gradient(
+      circle 666px at 50% 50%,
+      rgba(0, 96, 134, 0.3) 0%,
+      rgba(16, 106, 142, 0.287) 6.25%,
+      rgba(32, 116, 149, 0.274) 12.5%,
+      rgba(64, 136, 164, 0.248) 25%,
+      rgba(96, 156, 180, 0.222) 37.5%,
+      rgba(128, 176, 195, 0.197) 50%,
+      rgba(191, 215, 225, 0.145) 75%,
+      rgba(255, 255, 255, 0.093) 100%
+    ),
+    linear-gradient(
+      202.318deg,
+      rgba(65, 172, 194, 0.036) 2.97%,
+      rgba(255, 255, 255, 0.12) 57.25%,
+      rgba(50, 173, 255, 0.3) 117.89%
+    );
+}
+
+.qrFrame.qrOn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.qrImage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12.7%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.qrImage img {
+  position: static;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-width: 100%;
+}
+
+/*
+ * 유리 패널 한가운데에 QR 을 놓는다. 패널 폭의 약 65%가 QR 모듈 영역이 되도록 여백을 잡았다
+ * (QR PNG 는 가장자리 여백을 포함해 모듈이 폭의 87.7%). /fail 화면과 같은 값으로 맞춘다.
+ */
+.qrImageLive {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12.7%;
+  box-sizing: border-box;
+}
+
+.qrImageLive img,
+.qrImageLive p {
+  position: static;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-width: 100%;
+}
+
+.qrImageLiveLoading {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.qrGlow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 22.262px 21.816px rgba(255, 255, 255, 0.74),
+    inset -19.421px -19.421px 97.103px rgba(250, 151, 255, 0.58),
+    inset 0 8.014px 5.343px #fff,
+    inset -35.619px 0 36.687px rgba(254, 206, 255, 0.62),
+    inset 16.507px -23.305px 37.87px rgba(255, 255, 255, 0.6),
+    inset 0 8.905px 21.371px rgba(255, 203, 129, 0.88),
+    inset -3.562px -3.562px 15.405px rgba(255, 255, 255, 0.38),
+    inset -8.905px -8.905px 16.83px rgba(0, 0, 0, 0.25);
+}
+
+.qrGlowNabi {
+  box-shadow:
+    inset 0 22.262px 21.816px rgba(255, 255, 255, 0.74),
+    inset -19.421px -19.421px 97.103px rgba(142, 242, 105, 0.56),
+    inset 0 8.014px 5.343px #fff,
+    inset -35.619px 0 36.687px rgba(142, 242, 105, 0.56),
+    inset 16.507px -23.305px 37.87px rgba(255, 255, 255, 0.6),
+    inset 0 8.905px 21.371px rgba(255, 203, 129, 0.88),
+    inset -3.562px -3.562px 15.405px rgba(255, 255, 255, 0.38),
+    inset -8.905px -8.905px 16.83px rgba(0, 0, 0, 0.25);
+}

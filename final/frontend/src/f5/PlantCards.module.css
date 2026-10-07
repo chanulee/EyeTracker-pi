@@ -1,0 +1,129 @@
+/*
+ * 카드가 QR 면으로 멈출 때 화면 전체에 한 겹 더 깔리는 흐림 막.
+ * 기존 .finalBackdrop 위, 카드 아래에 들어간다. 피그마 2303×1296 기준값을
+ * 스테이지(3881×2183) 비율로 옮긴 것이라 화면 크기를 따라간다.
+ */
+.mistLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  -webkit-backdrop-filter: blur(12.6px);
+  backdrop-filter: blur(12.6px);
+  transition: opacity 1.2s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+.mistLayer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+  background: radial-gradient(
+    103.6% 113.3% at 50.4% 2.5%,
+    rgba(0, 0, 0, 0.25) 34.04%,
+    rgba(255, 255, 190, 0.5) 53.82%,
+    rgba(235, 223, 223, 0.8) 73.19%,
+    rgb(179, 201, 223) 86.7%,
+    rgb(101, 125, 199) 100%
+  );
+}
+
+.mistOn {
+  opacity: 1;
+}
+
+/* 막이 깔린 뒤 한 박자 늦게 올라오는 아래 문구. 원본 731×87 을 같은 비율로 키웠다. */
+.caption {
+  position: absolute;
+  left: 50%;
+  bottom: 240px;
+  z-index: 7;
+  width: 1232px;
+  height: 147px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s cubic-bezier(0.42, 0, 0.58, 1) 0.25s;
+}
+
+.captionOn {
+  opacity: 1;
+}
+
+/* 카드를 스테이지(3881×2183) 한가운데에 나란히 놓는다. 장수가 늘어도 간격을 유지한 채 가운데 정렬된다. */
+.cardLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 160px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s cubic-bezier(0.42, 0, 0.58, 1);
+}
+
+/* 글자·구슬이 거의 빠진 뒤에 들어오도록 한 박자 늦게 시작한다. */
+.cardLayerOn {
+  opacity: 1;
+  transition: opacity 1s cubic-bezier(0.42, 0, 0.58, 1) 0.5s;
+}
+
+/* 카드 원본 비율 505:769 를 그대로 키운 크기. */
+.cardSlot {
+  flex: none;
+  width: 700px;
+  height: 1066px;
+  perspective: 2600px;
+}
+
+.spinner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateY(0deg);
+}
+
+/* 천천히 돌기 시작해 가운데서 세 바퀴를 휘리릭 넘기고 정면에서 다시 천천히 멈춘다. */
+.spinnerSpun {
+  transform: rotateY(1080deg);
+  transition: transform 1.8s cubic-bezier(0.7, 0, 0.3, 1);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+
+.faceBack {
+  transform: rotateY(180deg);
+}
+
+.cardArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* 하단 흰 박스·글자·QR. 배경 그림 위에 같은 좌표계로 겹친다. */
+.panelLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.panel {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* QR 이미지의 흰 바탕을 박스에 녹여 검은 칸만 남긴다. */
+.qrSlot {
+  position: absolute;
+  mix-blend-mode: multiply;
+}

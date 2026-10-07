@@ -19,13 +19,14 @@ from urllib.parse import urlsplit
 
 os.environ.setdefault('PYTORCH_ENABLE_MPS_FALLBACK', '1')
 
-from aiohttp import web
+from aiohttp import ClientError, web
 import cv2
 import numpy as np
 
-from .gaze import POINTS, VALIDATION_POINTS, Stabilizer, fit_calibration, predict, features
+from .stream_capture import StreamCapture
+from .gaze import POINTS, QUICK_POINTS, VALIDATION_POINTS, Stabilizer, fit_calibration, predict, features
 from .recording import Recording
-from .camera_device import select_usb_camera
+from .camera_device import discover_cameras, recover_camera, select_camera, select_usb_camera
 
 HERE = Path(__file__).parent
 RUNTIME_KEY = web.AppKey('runtime', object)
@@ -95,6 +96,7 @@ class Runtime:
         self.reset()
 
     def reset(self):
+        self.quick_calibration = False
         self.session = secrets.token_hex(8)
         self.model = self.candidate = None
         self.points = []
@@ -200,19 +202,22 @@ class Runtime:
         selected_start = 0
         self.collecting = samples
         self.collecting_details = details
+        minimum = 6 if self.quick_calibration else 12
+        duration = .8 if self.quick_calibration else 1.2
+        spread = .12 if self.quick_calibration else .08
         try:
             # Twelve fresh detections at a slow GPU rate can take longer than 1.2s.
             while time.monotonic() - started < 4.:
                 await asyncio.sleep(.05)
                 if self.session != session or self.collecting is not samples:
                     raise ValueError('보정이 취소되었습니다')
-                if time.monotonic() - started >= 1.2 and len(samples) >= 12 and time.monotonic()-details[-1]['timestamp_s'] <= .35:
+                if time.monotonic() - started >= duration and len(samples) >= minimum and time.monotonic()-details[-1]['timestamp_s'] <= .35:
                     values = np.asarray(samples)
-                    if np.percentile(np.linalg.norm(values-np.median(values, axis=0), axis=1), 90) <= .08:
+                    if np.percentile(np.linalg.norm(values-np.median(values, axis=0), axis=1), 90) <= spread:
                         break
-                    recent = values[-12:]
-                    if np.percentile(np.linalg.norm(recent-np.median(recent, axis=0), axis=1), 90) <= .08:
-                        selected_start = len(samples)-12
+                    recent = values[-minimum:]
+                    if np.percentile(np.linalg.norm(recent-np.median(recent, axis=0), axis=1), 90) <= spread:
+                        selected_start = len(samples)-minimum
                         break
         finally:
             if self.collecting is samples:
@@ -227,9 +232,9 @@ class Runtime:
                                  duration_s=time.monotonic() - started,
                                  raw_median=median.tolist() if median is not None else None, raw_p90=p90)
         # A blink on the final frame must not discard twelve valid observations.
-        if len(samples) < 12 or time.monotonic()-details[-1]['timestamp_s'] > .35:
+        if len(samples) < minimum or time.monotonic()-details[-1]['timestamp_s'] > .35:
             raise ValueError('유효 프레임이 부족합니다. 동공/조명/연결을 확인하세요')
-        if p90 > .08:
+        if p90 > spread:
             raise ValueError('시선이 흔들렸습니다. 같은 점을 다시 보세요')
         return median.tolist()
 
@@ -276,13 +281,35 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
     app[RUNTIME_KEY] = runtime
     stopping = asyncio.Event()
     reconnect = asyncio.Event()
+    requested_device = None
+
+    async def camera_devices(request):
+        if sys.platform != 'darwin':
+            return web.json_response({'devices': [], 'error': '장치 목록은 macOS에서 지원합니다'})
+        try:
+            # Discovery must still respond when the capture worker is waiting for a frame.
+            devices = await asyncio.to_thread(discover_cameras)
+            return web.json_response({'devices': devices, 'error': None})
+        except (ValueError, KeyError, subprocess.SubprocessError, OSError) as error:
+            return web.json_response({'devices': [], 'error': f'카메라 목록 조회 실패: {error}'})
 
     async def refresh_camera(request):
+        nonlocal requested_device
         if not camera_enabled or isinstance(source, str):
             raise ValueError('USB 카메라 입력에서만 다시 연결할 수 있습니다')
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('카메라 선택 요청을 확인하세요')
+        chosen = data.get('identity', requested_device['identity'] if requested_device else None)
+        device = None
+        if chosen is not None:
+            if not isinstance(chosen, str) or not chosen:
+                raise ValueError('카메라 장치 ID를 확인하세요')
+            device = await asyncio.to_thread(select_camera, chosen)
         async with runtime.lock:
             if runtime.calibrating or recording.video is not None:
                 raise ValueError('보정과 영상 녹화를 종료한 뒤 카메라를 다시 연결하세요')
+            requested_device = device
             reconnect.set()
             runtime.reset()
             runtime.connected = False
@@ -290,7 +317,7 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
             runtime.received = 0.
             runtime.error = 'USB 카메라를 다시 찾는 중입니다'
             recording.event('camera_refresh', session_id=runtime.session)
-        return web.json_response({'reconnecting': True})
+        return web.json_response({'reconnecting': True, 'identity': chosen})
 
     async def detector_settings(request):
         data = await request.json()
@@ -388,6 +415,9 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
             raise ValueError('영상 파일 재생 모드에서는 실제 시선 보정을 할 수 없습니다. USB 카메라 모드로 실행하세요')
         session = runtime.session
         if action in ('reset', 'begin', 'cancel'):
+            mode = data.get('mode', 'standard')
+            if mode not in ('standard', 'quick'):
+                raise ValueError('보정 모드를 확인하세요')
             viewport = data.get('viewport')
             if action == 'begin' and viewport is not None:
                 if not isinstance(viewport, dict) or set(viewport) != {'width', 'height'}:
@@ -418,6 +448,7 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
                         raise ValueError('이미 수집 중입니다')
                     runtime.session = secrets.token_hex(8)
                     runtime.calibrating = runtime.locked = True
+                    runtime.quick_calibration = mode == 'quick'
                     runtime.points = []
                     runtime.validation_errors = []
                     runtime.calibration_viewport = viewport
@@ -445,16 +476,17 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
                 runtime.tracker.reference is None):
             raise ValueError('중앙 1점에서 착용자 기준을 먼저 수집하세요')
         if action == 'sample':
-            index = number(data['index'], 0, 8, integer=True)
+            points = QUICK_POINTS if runtime.quick_calibration else POINTS
+            index = number(data['index'], 0, len(points)-1, integer=True)
             if index != len(runtime.points):
                 raise ValueError('지점 순서가 맞지 않습니다')
-            raw, record = await capture_point(action, index, POINTS[index], session)
+            raw, record = await capture_point(action, index, points[index], session)
             if session != runtime.session:
                 raise ValueError('보정이 취소되었습니다')
             runtime.points.append(raw)
-            if len(runtime.points) == 9:
+            if len(runtime.points) == len(points):
                 try:
-                    runtime.candidate = fit_calibration(runtime.points, POINTS)
+                    runtime.candidate = fit_calibration(runtime.points, points, quick=runtime.quick_calibration)
                     runtime.report_model = runtime.candidate
                 except ValueError as error:
                     record.update(passed=False, error=str(error))
@@ -463,7 +495,15 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
             record['passed'] = True
             recording.event('calibration_sample', sample=record, model=runtime.report_model)
             return web.json_response({'collected': len(runtime.points),
-                                      'fit_diagnostics': runtime.candidate if len(runtime.points) == 9 else None})
+                                      'fit_diagnostics': runtime.candidate if len(runtime.points) == len(points) else None})
+        if action == 'finish_quick':
+            if not runtime.quick_calibration or runtime.candidate is None or len(runtime.points) != 6:
+                raise ValueError('간단 보정 6개 지점을 먼저 수집하세요')
+            runtime.model = runtime.candidate
+            runtime.calibrating = False
+            runtime.filter.reset()
+            recording.event('quick_calibration_complete', model=runtime.model, session_id=session)
+            return web.json_response({'calibrated': True, 'independently_validated': False, 'fit_error': runtime.model['fit_error']})
         if action == 'validate':
             collect_all = data.get('collect_all', False)
             if not isinstance(collect_all, bool):
@@ -509,7 +549,8 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
         return web.FileResponse(HERE / 'web' / 'app.js')
 
     async def plan(request):
-        return web.json_response(dict(points=POINTS, validation_points=VALIDATION_POINTS))
+        quick = request.query.get('mode') == 'quick'
+        return web.json_response(dict(points=QUICK_POINTS if quick else POINTS, validation_points=[] if quick else VALIDATION_POINTS))
 
     async def status(request):
         times = [t for t in runtime.frame_times if time.monotonic() - t < 2]
@@ -529,7 +570,7 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
         condition = None
         if len(runtime.points) == 9:
             inputs = np.asarray(runtime.points)
-            condition = float(np.linalg.cond(features((inputs - inputs.mean(0)) / inputs.std(0))))
+            condition = float(np.linalg.cond(features((inputs - inputs.mean(0)) / inputs.std(0), affine=runtime.quick_calibration)))
         return web.json_response(dict(engine=runtime.config['engine'], tracker_metadata=getattr(runtime.tracker, 'metadata', {}),
             detector_settings=getattr(runtime.tracker, 'settings', {}), source=str(source), config=runtime.config,
             camera=runtime.camera_info, viewport=runtime.report_viewport, model=model,
@@ -537,9 +578,10 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
             calibrated=runtime.model is not None, validation_errors=runtime.validation_errors))
 
     async def preview(request):
-        if runtime.jpg is None or time.monotonic() - runtime.received > .35:
-            raise web.HTTPServiceUnavailable(text='최신 영상 없음')
-        return web.Response(body=runtime.jpg, content_type='image/jpeg')
+        if runtime.jpg is None or time.monotonic() - runtime.received > 2:
+            raise web.HTTPServiceUnavailable(text='최근 2초 동안 처리된 영상 없음')
+        return web.Response(body=runtime.jpg, content_type='image/jpeg',
+                            headers={'Cache-Control': 'no-store', 'X-Frame-Age-Ms': str(round((time.monotonic() - runtime.received) * 1000))})
 
     async def record(request):
         data = await request.json()
@@ -614,9 +656,16 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
         return web.FileResponse(path, headers={'Content-Disposition': f'attachment; filename="{path.parent.name}.zip"'})
 
     async def camera_loop(executor):
-        run = functools.partial(asyncio.get_running_loop().run_in_executor, executor)
+        async def run(func, *args):
+            if asyncio.iscoroutinefunction(func):
+                return await func(*args)
+            return await asyncio.get_running_loop().run_in_executor(executor, func, *args)
+        live_stream = isinstance(source, str) and source.startswith('http://')
         cap = None
-        identity = None
+        selected = None
+        native_mode = False
+        failures = 0
+        first_frame = True
         try:
             while not stopping.is_set():
                 try:
@@ -624,38 +673,49 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
                         if cap is not None:
                             await run(cap.release)
                             cap = None
-                        identity = None  # Explicit refresh may select a replugged USB port.
+                        selected = None
+                        native_mode = False
+                        failures = 0
                         reconnect.clear()
                     if cap is None:
                         backend = cv2.CAP_AVFOUNDATION if sys.platform == 'darwin' and isinstance(source, int) else cv2.CAP_ANY
-                        selected = await run(select_usb_camera, identity, source) if backend == cv2.CAP_AVFOUNDATION else None
-                        if selected:
-                            identity = selected['identity']
+                        if backend == cv2.CAP_AVFOUNDATION:
+                            previous = requested_device or selected
+                            selected = await run(recover_camera, previous) if previous else await run(select_usb_camera, None, source)
                         capture_source = selected['index'] if selected else source
+                        runtime.error = '카메라 초기화 중 · 첫 영상 프레임 대기'
                         # macOS must request camera permission on the main thread.
                         # ponytail: opening can stall HTTP; preauthorize then open in the worker if latency matters.
-                        cap = cv2.VideoCapture(capture_source, backend)
+                        cap = await StreamCapture().open(capture_source) if live_stream else cv2.VideoCapture(capture_source, backend)
                         if not await run(cap.isOpened):
                             raise RuntimeError(f'카메라 {source}를 열 수 없습니다. 번호 / macOS 카메라 권한을 확인하세요')
-                        if isinstance(source, int):
-                            for prop, value in ((cv2.CAP_PROP_FRAME_WIDTH, 320), (cv2.CAP_PROP_FRAME_HEIGHT, 240), (cv2.CAP_PROP_FPS, 30)):
+                        if isinstance(source, int) and not native_mode:
+                            # Avoid changing the UVC frame interval during AVFoundation startup.
+                            for prop, value in ((cv2.CAP_PROP_FRAME_WIDTH, 320), (cv2.CAP_PROP_FRAME_HEIGHT, 240)):
                                 await run(cap.set, prop, value)
                         runtime.camera_info = dict(source=str(capture_source), device=selected,
-                            mode='video' if isinstance(source, str) else 'camera',
-                            requested_size=[320, 240] if isinstance(source, int) else None,
+                            mode='stream' if live_stream else 'video' if isinstance(source, str) else 'camera',
+                            requested_size=[320, 240] if isinstance(source, int) and not native_mode else None,
+                            recovery_mode='device_default' if native_mode else '320x240', reconnect_attempts=failures,
                             capture_width=await run(cap.get, cv2.CAP_PROP_FRAME_WIDTH),
                             capture_height=await run(cap.get, cv2.CAP_PROP_FRAME_HEIGHT),
                             reported_fps=await run(cap.get, cv2.CAP_PROP_FPS))
-                        if isinstance(source, int):
-                            runtime.camera_info['autofocus_request_accepted'] = bool(await run(cap.set, cv2.CAP_PROP_AUTOFOCUS, 1))
+                        runtime.camera_info['autofocus_request_accepted'] = False
+                        first_frame = True
                         async with runtime.lock:
-                            runtime.reset()
-                            runtime.connected = True
+                            runtime.connected = False
                     started = time.monotonic()
                     ok, image = await run(cap.read)
                     captured_s = time.monotonic()
+                    if not ok and first_frame and isinstance(source, int):
+                        # A newly opened UVC stream may need time to deliver its first frame.
+                        deadline = time.monotonic() + 1.5
+                        while not ok and time.monotonic() < deadline and not stopping.is_set() and not reconnect.is_set():
+                            await asyncio.sleep(.1)
+                            ok, image = await run(cap.read)
+                            captured_s = time.monotonic()
                     if not ok:
-                        if isinstance(source, str):
+                        if isinstance(source, str) and not live_stream:
                             await run(cap.set, cv2.CAP_PROP_POS_FRAMES, 0)
                             ok, image = await run(cap.read)
                             captured_s = time.monotonic()
@@ -663,6 +723,9 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
                             raise RuntimeError('카메라 프레임 읽기 실패 · 재연결 대기')
                     async with runtime.lock:
                         processing_started = time.monotonic()
+                        first_frame = False
+                        failures = 0
+                        runtime.connected = True
                         runtime.camera_info.update(capture_width=image.shape[1], capture_height=image.shape[0])
                         result = await run(runtime.analyze, image)
                         # Match the detector's own 4:3 crop so the overlay aligns at any negotiated camera size.
@@ -699,34 +762,56 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
                             await run(recording.close)
                             recording.error = f'영상 저장 실패: {error}'
                     await asyncio.sleep(max(0, 1 / fps - (time.monotonic() - started)))
-                except (RuntimeError, ValueError, cv2.error, subprocess.SubprocessError, OSError) as error:
-                    LOG.warning('%s', error)
+                except (RuntimeError, ValueError, cv2.error, subprocess.SubprocessError, OSError, ClientError, asyncio.TimeoutError) as error:
+                    LOG.warning('%s: %s', type(error).__name__, error)
                     recording.event('camera_error', error=str(error), session_id=runtime.session)
                     async with runtime.lock:
-                        runtime.reset()
+                        if runtime.connected or runtime.calibrating or runtime.model is not None:
+                            runtime.reset()
                         runtime.connected = False
-                        runtime.error = str(error)
+                        runtime.jpg = None
+                        runtime.received = 0.
+                        failures += 1
+                        runtime.camera_info['reconnect_attempts'] = failures
+                        runtime.error = f'{error} · 자동 복구 시도 {failures}'
                     if cap is not None:
                         await run(cap.release)
                         cap = None
-                    await asyncio.sleep(1)
+                        if isinstance(source, int):
+                            native_mode = not native_mode
+                    # Release the device before reopening; a manual request can wake the retry early.
+                    try:
+                        await asyncio.wait_for(reconnect.wait(), timeout=min(4., failures))
+                    except asyncio.TimeoutError:
+                        pass
         finally:
             if cap is not None:
                 await run(cap.release)
 
     async def lifecycle(app):
         task = asyncio.create_task(camera_loop(executor)) if camera_enabled else None
+        def camera_stopped(task):
+            if not task.cancelled() and task.exception() is not None:
+                error = task.exception()
+                LOG.error('Camera worker stopped', exc_info=(type(error), error, error.__traceback__))
+                runtime.connected = False
+                runtime.error = f'영상 처리 중단: {type(error).__name__}: {error}'
+        if task is not None:
+            task.add_done_callback(camera_stopped)
         try:
             yield
         finally:
             stopping.set()
-            if task is not None:
-                await task  # Finish an in-flight capture before releasing its device on the same thread.
-            await work(recording.close)
-            executor.shutdown(wait=True)
+            try:
+                if task is not None:
+                    await task  # Finish an in-flight capture before releasing its device on the same thread.
+            finally:
+                await work(recording.close)
+                executor.shutdown(wait=True)
 
     app.cleanup_ctx.append(lifecycle)
     app.add_routes([web.get('/', page), web.get('/app.js', script), web.get('/api/plan', plan),
+                    web.get('/api/camera/devices', camera_devices),
                     web.get('/api/status', status), web.get('/api/report', report),
                     web.post('/api/camera/refresh', refresh_camera),
                     web.post('/api/detector', detector_settings),
@@ -740,8 +825,9 @@ def create_app(config=None, tracker=None, source=0, fps=20, camera_enabled=True,
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--camera', type=int, default=0, help='여러 USB 카메라 중 선택할 OpenCV 번호')
-    parser.add_argument('--engine', choices=ENGINES, default='orlosky')
+    parser.add_argument('--engine', choices=ENGINES, default='deepvog-verified')
     parser.add_argument('--focal-length', type=float, default=560., help='3D 모델 초점거리 (640px 작업 영상); 실측하지 않은 기본값')
+    parser.add_argument('--stream', help='Pi stream 대시보드 주소 (http://Pi주소:8090)')
     parser.add_argument('--video', help='카메라 대신 반복 재생할 눈 영상 (정확도 측정용 아님)')
     parser.add_argument('--port', type=int, default=8090)
     parser.add_argument('--fps', type=int, choices=range(10, 31), default=20)
@@ -755,11 +841,17 @@ def main():
                   smoothing_ms=number(args.smoothing_ms, 10, 500), max_speed=number(args.max_speed, .1, 20))
     if args.camera < 0 or not 1 <= args.port <= 65535:
         parser.error('카메라는 0 이상, 포트는 1–65535 범위입니다')
+    if args.stream and args.video:
+        parser.error('--stream과 --video는 함께 사용할 수 없습니다')
+    if args.stream:
+        url = urlsplit(args.stream)
+        if url.scheme != 'http' or not url.hostname or url.username or url.password or url.path not in ('', '/') or url.query or url.fragment:
+            parser.error('--stream에는 http://Pi주소:8090 형식의 주소를 입력하세요')
     if args.video and not Path(args.video).is_file():
         parser.error('눈 영상 경로를 확인하세요')
     logging.basicConfig(level=logging.INFO)
     print(f'카메라 정확도 테스트: http://localhost:{args.port}')
-    web.run_app(create_app(config, source=args.video or args.camera, fps=args.fps),
+    web.run_app(create_app(config, source=(args.stream.rstrip('/') + '/camera.mjpg') if args.stream else args.video or args.camera, fps=args.fps),
                 host='127.0.0.1', port=args.port, access_log=None)
 
 
